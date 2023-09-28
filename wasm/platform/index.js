@@ -1120,26 +1120,34 @@ function updateDefaultBitrate() {
   if (res === "1920:1080") {
     if (frameRate === "30") { // 1080p, 30fps
       $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else { // 1080p, 60fps
+    } else if (frameRate === "60") { // 1080p, 60fps
       $('#bitrateSlider')[0].MaterialSlider.change('20');
+    } else { // 1080p, 120fps
+      $('#bitrateSlider')[0].MaterialSlider.change('40');
     }
   } else if (res === "1280:720") {
     if (frameRate === "30") { // 720, 30fps
       $('#bitrateSlider')[0].MaterialSlider.change('5');
-    } else { // 720, 60fps
+    } else if (frameRate === "60") { // 720, 60fps
       $('#bitrateSlider')[0].MaterialSlider.change('10');
+    } else { // 720, 120fps
+      $('#bitrateSlider')[0].MaterialSlider.change('20');
     }
   } else if (res === "2560:1440") {
-    if (frameRate === "30") { // 1140, 30fps
+    if (frameRate === "30") { // 1440, 30fps
       $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else { // 1140, 60fps
+    } else if (frameRate === "60") { // 1440, 60fps
       $('#bitrateSlider')[0].MaterialSlider.change('40');
+    } else { // 1440, 120fps
+      $('#bitrateSlider')[0].MaterialSlider.change('80');
     }
   } else if (res === "3840:2160") {
     if (frameRate === "30") { // 2160p, 30fps
       $('#bitrateSlider')[0].MaterialSlider.change('40');
-    } else { // 2160p, 60fps
+    } else if (frameRate === "60") { // 2160p, 60fps
       $('#bitrateSlider')[0].MaterialSlider.change('80');
+    } else { // 2160p, 120fps
+      $('#bitrateSlider')[0].MaterialSlider.change('120');
     }
   } else { // unrecognized option. In case someone screws with the JS to add custom resolutions
     $('#bitrateSlider')[0].MaterialSlider.change('10');
