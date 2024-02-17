@@ -18,12 +18,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-// Requests the NaCl module to connection to the server specified after the :
+// Requests the NaCl module to connection to the server specified after the:
 #define MSG_START_REQUEST "startRequest"
 // Requests the NaCl module stop streaming
 #define MSG_STOP_REQUEST "stopRequest"
-// Sent by the NaCl module when the stream has stopped whether user-requested or
-// not
+// Sent by the NaCl module when the stream has stopped whether user-requested or not
 #define MSG_STREAM_TERMINATED "streamTerminated: "
 
 #define MSG_OPENURL "openUrl"
@@ -31,8 +30,7 @@
 MoonlightInstance* g_Instance;
 
 MoonlightInstance::MoonlightInstance()
-    : m_RequestIdrFrame(false),
-      m_OpusDecoder(NULL),
+    : m_OpusDecoder(NULL),
       m_MouseLocked(false),
       m_MouseLastPosX(-1),
       m_MouseLastPosY(-1),
@@ -53,9 +51,8 @@ MoonlightInstance::MoonlightInstance()
       m_VideoSessionId(0),
       m_MediaElement("nacl_module"),
       m_Source(
-          samsung::wasm::ElementaryMediaStreamSource::LatencyMode::kUltraLow,
-          samsung::wasm::ElementaryMediaStreamSource::RenderingMode::
-              kMediaElement),
+        samsung::wasm::ElementaryMediaStreamSource::LatencyMode::kUltraLow,
+        samsung::wasm::ElementaryMediaStreamSource::RenderingMode::kMediaElement),
       m_SourceListener(this),
       m_AudioTrackListener(this),
       m_VideoTrackListener(this),
@@ -148,11 +145,12 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
   serverInfo.address = me->m_Host.c_str();
   serverInfo.serverInfoAppVersion = me->m_AppVersion.c_str();
   serverInfo.serverInfoGfeVersion = me->m_GfeVersion.c_str();
+  serverInfo.rtspSessionUrl = me->m_RtspUrl.c_str();
+  serverInfo.serverCodecModeSupport = me->m_supportedVideoFormats; 
 
   err = LiStartConnection(&serverInfo, &me->m_StreamConfig,
-                          &MoonlightInstance::s_ClCallbacks,
-                          &MoonlightInstance::s_DrCallbacks,
-                          &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0);
+  &MoonlightInstance::s_ClCallbacks, &MoonlightInstance::s_DrCallbacks,
+  &MoonlightInstance::s_ArCallbacks, NULL, 0, NULL, 0);
   if (err != 0) {
     // Notify the JS code that the stream has ended
     // NB: We pass error code 0 here to avoid triggering a "Connection
@@ -164,8 +162,7 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
   // Set running state before starting connection-specific threads
   me->m_Running = true;
 
-  pthread_create(&me->m_InputThread, NULL, MoonlightInstance::InputThreadFunc,
-                 me);
+  pthread_create(&me->m_InputThread, NULL, MoonlightInstance::InputThreadFunc, me);
 
   return NULL;
 }
@@ -177,10 +174,10 @@ static void HexStringToBytes(const char* str, char* output) {
 }
 
 MessageResult MoonlightInstance::StartStream(
-    std::string host, std::string width, std::string height, std::string fps,
-    std::string bitrate, std::string rikey, std::string rikeyid,
-    std::string appversion, std::string gfeversion, bool framePacing,
-    bool audioSync) {
+std::string host, std::string width, std::string height, std::string fps,
+std::string bitrate, std::string rikey, std::string rikeyid,
+std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
+bool audioSync, bool hdrEnabled, std::string codecVideo) {
   PostToJs("Setting stream width to: " + width);
   PostToJs("Setting stream height to: " + height);
   PostToJs("Setting stream fps to: " + fps);
@@ -190,8 +187,11 @@ MessageResult MoonlightInstance::StartStream(
   PostToJs("Setting rikeyid to: " + rikeyid);
   PostToJs("Setting appversion to: " + appversion);
   PostToJs("Setting gfeversion to: " + gfeversion);
+  PostToJs("Setting RTSP url to: " + rtspurl);
   PostToJs("Setting frame pacing to: " + std::to_string(framePacing));
   PostToJs("Setting audio syncing to: " + std::to_string(audioSync));
+  PostToJs("Setting HDR to:" + std::to_string(hdrEnabled));
+  PostToJs("Setting videoCodec: " + codecVideo);
 
   // Populate the stream configuration
   LiInitializeStreamConfiguration(&m_StreamConfig);
@@ -203,7 +203,8 @@ MessageResult MoonlightInstance::StartStream(
   m_StreamConfig.streamingRemotely = STREAM_CFG_AUTO;
   m_StreamConfig.packetSize = 1392;
   m_StreamConfig.supportsHevc = true;
-  //m_StreamConfig.enableHdr = true;
+  m_StreamConfig.enableHdr = hdrEnabled;
+  m_StreamConfig.supportedVideoFormats = stoi(codecVideo,0,16); 
 
   // Load the rikey and rikeyid into the stream configuration
   HexStringToBytes(rikey.c_str(), m_StreamConfig.remoteInputAesKey);
@@ -214,14 +215,16 @@ MessageResult MoonlightInstance::StartStream(
   m_Host = host;
   m_AppVersion = appversion;
   m_GfeVersion = gfeversion;
+  m_RtspUrl = rtspurl;
   m_FramePacingEnabled = framePacing;
   m_AudioSyncEnabled = audioSync;
-
+  m_HdrEnabled = hdrEnabled;
+  m_supportedVideoFormats = stoi(codecVideo,0,16);
+  
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
     // Start the worker thread to establish the connection
-    pthread_create(&m_ConnectionThread, NULL,
-                   MoonlightInstance::ConnectionThreadFunc, this);
+    pthread_create(&m_ConnectionThread, NULL, MoonlightInstance::ConnectionThreadFunc, this);
   } else {
     // Failed to initialize renderer
     OnConnectionStopped(0);
@@ -244,8 +247,7 @@ void MoonlightInstance::STUN_private(int callbackId) {
   if (LiFindExternalAddressIP4("stun.moonlight-stream.org", 3478, &wanAddr) ==
       0) {
     inet_ntop(AF_INET, &wanAddr, addrStr, sizeof(addrStr));
-    PostPromiseMessage(callbackId, "resolve",
-                       std::string(addrStr, strlen(addrStr)));
+    PostPromiseMessage(callbackId, "resolve", std::string(addrStr, strlen(addrStr)));
   } else {
     PostPromiseMessage(callbackId, "resolve", "");
   }
@@ -256,10 +258,8 @@ void MoonlightInstance::STUN(int callbackId) {
       std::bind(&MoonlightInstance::STUN_private, this, callbackId), false);
 }
 
-void MoonlightInstance::Pair_private(int callbackId,
-                                     std::string serverMajorVersion,
-                                     std::string address,
-                                     std::string randomNumber) {
+void MoonlightInstance::Pair_private(int callbackId, std::string serverMajorVersion,
+std::string address, std::string randomNumber) {
   char* ppkstr;
   int err = gs_pair(atoi(serverMajorVersion.c_str()), address.c_str(),
                     randomNumber.c_str(), &ppkstr);
@@ -274,7 +274,7 @@ void MoonlightInstance::Pair_private(int callbackId,
 }
 
 void MoonlightInstance::Pair(int callbackId, std::string serverMajorVersion,
-                             std::string address, std::string randomNumber) {
+std::string address, std::string randomNumber) {
   printf("%s address: %s\n", __func__, address.c_str());
   m_Dispatcher.post_job(
       std::bind(&MoonlightInstance::Pair_private, this, callbackId,
@@ -282,8 +282,7 @@ void MoonlightInstance::Pair(int callbackId, std::string serverMajorVersion,
       false);
 }
 
-bool MoonlightInstance::Init(uint32_t argc, const char* argn[],
-                             const char* argv[]) {
+bool MoonlightInstance::Init(uint32_t argc, const char* argn[], const char* argv[]) {
   g_Instance = this;
   return true;
 }
@@ -305,10 +304,8 @@ int main(int argc, char** argv) {
   // method, passing first argument to it, I've workaround for it
   // When passing address 0x1, js glue code replace it with document object
   static const char* kDocument = reinterpret_cast<const char*>(0x1);
-  emscripten_set_pointerlockchange_callback(kDocument, NULL, EM_TRUE,
-                                            handlePointerLockChange);
-  emscripten_set_pointerlockerror_callback(kDocument, NULL, EM_TRUE,
-                                           handlePointerLockError);
+  emscripten_set_pointerlockchange_callback(kDocument, NULL, EM_TRUE, handlePointerLockChange);
+  emscripten_set_pointerlockerror_callback(kDocument, NULL, EM_TRUE, handlePointerLockError);
   EM_ASM(Module['noExitRuntime'] = true);
   unsigned char buffer[128];
   int rc = RAND_bytes(buffer, sizeof(buffer));
@@ -319,23 +316,18 @@ int main(int argc, char** argv) {
   RAND_seed(buffer, 128);
 }
 MessageResult startStream(std::string host, std::string width,
-                          std::string height, std::string fps,
-                          std::string bitrate, std::string rikey,
-                          std::string rikeyid, std::string appversion,
-                          std::string gfeversion, bool framePacing,
-                          bool audioSync) {
-  printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(),
-         width.c_str(), height.c_str());
+std::string height, std::string fps, std::string bitrate, std::string rikey,
+std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
+bool audioSync, bool hdrEnabled, std::string codecVideo) {
+  printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(), width.c_str(), height.c_str());
   return g_Instance->StartStream(host, width, height, fps, bitrate, rikey,
-                                 rikeyid, appversion, gfeversion, framePacing,
-                                 audioSync);
+  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo);
 }
 
 MessageResult stopStream() { return g_Instance->StopStream(); }
 void stun(int callbackId) { g_Instance->STUN(callbackId); }
 
-void pair(int callbackId, std::string serverMajorVersion, std::string address,
-          std::string randomNumber) {
+void pair(int callbackId, std::string serverMajorVersion, std::string address, std::string randomNumber) {
   g_Instance->Pair(callbackId, serverMajorVersion, address, randomNumber);
 }
 
@@ -348,8 +340,7 @@ void PostToJs(std::string msg) {
       msg.c_str());
 }
 
-void PostPromiseMessage(int callbackId, const std::string& type,
-                        const std::string& response) {
+void PostPromiseMessage(int callbackId, const std::string& type, const std::string& response) {
   MAIN_THREAD_EM_ASM(
       {
         const type = UTF8ToString($1);
@@ -359,8 +350,7 @@ void PostPromiseMessage(int callbackId, const std::string& type,
       },
       callbackId, type.c_str(), response.c_str());
 }
-void PostPromiseMessage(int callbackId, const std::string& type,
-                        const std::vector<uint8_t>& response) {
+void PostPromiseMessage(int callbackId, const std::string& type, const std::vector<uint8_t>& response) {
   MAIN_THREAD_EM_ASM(
       {
         const type = UTF8ToString($1);
@@ -373,8 +363,8 @@ void PostPromiseMessage(int callbackId, const std::string& type,
 
 EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::value_object<MessageResult>("MessageResult")
-      .field("type", &MessageResult::type)
-      .field("ret", &MessageResult::ret);
+    .field("type", &MessageResult::type)
+    .field("ret", &MessageResult::ret);
 
   emscripten::function("startStream", &startStream);
   emscripten::function("stopStream", &stopStream);

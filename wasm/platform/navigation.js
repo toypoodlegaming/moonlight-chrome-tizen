@@ -46,34 +46,39 @@ function isPopupActive(id) {
       .classList
       .contains('is-visible');
 }
+
 class ListView {
-  constructor(func) {
-    this.index = 0;
-    this.func = func;
-  }
+	  constructor(func) {
+	    this.index = 0;
+	    this.func = func;
+	  }
 
-  prev() {
-    if (this.index > 0 ) {
-      const array = this.func();
-      unmark(array[this.index]);
-      --this.index;
-      mark(array[this.index]);
-    }
-  }
+	  prev() {
+	    if (this.index > 0) {
+	      unmark(this.func()[this.index]);
+	      --this.index;
+	      mark(this.func()[this.index]);
+	    }
 
-  next() {
-    const array = this.func();
-    if (this.index < array.length - 1) {
-      unmark(array[this.index]);
-      ++this.index;
-      mark(array[this.index]);
-    }
-  }
+	    return this.func()[this.index];
+	  }
 
-  current() {
-    return this.func()[this.index];
-  }
-};
+	  next() {
+	    const array = this.func();
+	    if (this.index < array.length - 1) {
+	      unmark(array[this.index]);
+	      ++this.index;
+	      mark(array[this.index]);
+	    }
+
+	    return array[this.index];
+	  }
+
+	  current() {
+	    return this.func()[this.index];
+	  }
+	}
+
 
 const Views = {
   Hosts: {
@@ -95,6 +100,17 @@ const Views = {
         element.children[0].click();
       }
     },
+    back: function() {
+      showTerminateMoonlightDialog(); /* Show the dialog and push the view */
+    },
+    startBtn: function() {
+      const element = this.view.current();
+      if (element.id != 'addHostCell') {
+          element.children[1].click();
+        }
+    },
+    selectBtn: function() { //for future use
+    },
     enter: function() {
       mark(this.view.current());
     },
@@ -107,10 +123,12 @@ const Views = {
       'selectResolution',
       'selectFramerate',
       'bitrateField',
+      'selectCodecVideo',
       'externalAudioBtn',
       'optimizeGamesBtn',
       'framePacingBtn',
-      'audioSyncBtn']),
+      'audioSyncBtn',
+      'hdrBtn']),
     left: function() {
       this.view.prev();
     },
@@ -131,41 +149,70 @@ const Views = {
     },
   },
   AddHostDialog: {
-    view: new ListView(() => [
-      'dialogInputHost',
-      'continueAddHost',
-      'cancelAddHost']),
-    left: function() {
-      this.view.prev();
-    },
-    right: function() {
-      this.view.next();
-    },
-    down: function() {
-        document.getElementById('continueAddHost').click();
-    },
-    accept: function() {
-      document.getElementById(this.view.current()).click();
-    },
-    back: function() {
-      document.getElementById('cancelAddHost').click();
-    },
-    enter: function() {
-      mark(this.view.current());
-    },
-    leave: function() {
-      unmark(this.view.current());
-    },
-  },
+	  view: new ListView(() => {
+	  	if (document.getElementById('manualInputToggle').checked) {
+	  		return ['manualInputToggle', 'manualIPAddress', 'continueAddHost', 'cancelAddHost'];
+	  } else {
+	  	  return ['manualInputToggle','ipPart1', 'ipPart2', 'ipPart3', 'ipPart4', 'continueAddHost', 'cancelAddHost'];
+      }
+	  }),
+	  left: function() {
+	      document.getElementById(this.view.prev()).focus();
+	  },
+	  right: function() {
+		  document.getElementById(this.view.next()).focus();
+	  },
+    up: function () {
+	    const currentId = this.view.current();
+	    if (currentId.startsWith('ipPart')) {
+	      const digitElement = document.getElementById(currentId);
+	      const currentValue = parseInt(digitElement.value, 10);
+	      if (currentValue < 255) {
+	        digitElement.value = currentValue + 1;
+	      } else {
+	    	digitElement.value = 0;
+	      }
+	    }
+	  },
+	  down: function () {
+	    const currentId = this.view.current();
+	    if (currentId.startsWith('ipPart')) {
+	      const digitElement = document.getElementById(currentId);
+	      const currentValue = parseInt(digitElement.value, 10);
+	      if (currentValue > 0) {
+	        digitElement.value = currentValue - 1;
+	      } else {
+	    	digitElement.value = 255;
+	      }
+	    }
+	  },
+	  accept: function () {
+	    document.getElementById(this.view.current()).click();
+	  },
+	  selectBtn: function () {
+		document.getElementById('manualInputToggle').click();
+	  },
+	  back: function () {
+	    document.getElementById('cancelAddHost').click();
+	  },
+	  enter: function () {
+	    mark(this.view.current());
+	  },
+	  leave: function () {
+	    unmark(this.view.current());
+	  },
+	},
   DeleteHostDialog: {
     view: new ListView(() => [
       'continueDeleteHost',
       'cancelDeleteHost']),
     left: function() {
       this.view.prev();
+      document.getElementById(this.view.current()).focus();
     },
     right: function() {
       this.view.next();
+      document.getElementById(this.view.current()).focus();
     },
     down: function() {
         document.getElementById('continueDeleteHost').click();
@@ -258,6 +305,35 @@ const Views = {
     enter: function() {},
     leave: function() {},
   },
+    SelectCodecVideoMenu: {
+    isActive: () => isPopupActive('codecVideoMenu'),
+    view: new ListView(
+        () => document
+            .getElementById('codecVideoMenu')
+            .parentNode
+            .children[1]
+            .children[1]
+            .children),
+    up: function() {
+      this.view.prev();
+    },
+    down: function() {
+      this.view.next();
+    },
+    accept: function() {
+      this.view.current().click();
+	  showRestartMoonlightDialog(); /* Show the dialog and push the view */
+    },
+    back: function() {
+      document.getElementById('selectCodecVideo').click();
+    },
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current())
+    },
+  },
   PairingDialog: {
     view: new ListView(() => ['cancelPairingDialog']),
     accept: function() {
@@ -306,9 +382,11 @@ const Views = {
     },
     left: function() {
       this.view.prev();
+      document.getElementById(this.view.current()).focus();
     },
     right: function() {
       this.view.next();
+      document.getElementById(this.view.current()).focus();
     },
     accept: function() {
       document.getElementById(this.view.current()).click();
@@ -333,15 +411,74 @@ const Views = {
     },
     left: function() {
       this.view.prev();
+      document.getElementById(this.view.current()).focus();
     },
     right: function() {
       this.view.next();
+      document.getElementById(this.view.current()).focus();
     },
     accept: function() {
       document.getElementById(this.view.current()).click();
     },
     back: function() {
       document.getElementById('cancelQuitApp').click();
+    },
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  RestartMoonlightDialog: {
+    isActive: () => isDialogActive('RestartMoonlightDialog'),
+    view: new ListView(() => [
+      'pressOK']),
+    left: function() {
+      this.view.prev();
+      document.getElementById(this.view.current()).focus();
+    },
+    right: function() {
+      this.view.next();
+      document.getElementById(this.view.current()).focus();
+    },
+    down: function() {
+      document.getElementById('pressOK').focus();
+    },
+    accept: function() {
+      document.getElementById(this.view.current()).click();
+    },
+    back: function() {
+      document.getElementById('pressOK').focus();
+    },
+    enter: function() {
+      mark(this.view.current());
+    },
+    leave: function() {
+      unmark(this.view.current());
+    },
+  },
+  TerminateMoonlightDialog: {
+    isActive: () => isDialogActive('TerminateMoonlightDialog'),
+    view: new ListView(() => [
+      'exitTerminateMoonlight',
+      'cancelTerminateMoonlight']),
+    left: function() {
+      this.view.prev();
+      document.getElementById(this.view.current()).focus();
+    },
+    right: function() {
+      this.view.next();
+      document.getElementById(this.view.current()).focus();
+    },
+    down: function() {
+      document.getElementById('exitTerminateMoonlight').focus();
+    },
+    accept: function() {
+      document.getElementById(this.view.current()).click();
+    },
+    back: function() {
+      document.getElementById('cancelTerminateMoonlight').focus();
     },
     enter: function() {
       mark(this.view.current());
@@ -448,6 +585,8 @@ const Navigation = (function() {
     right: runOp('right'),
     up: runOp('up'),
     down: runOp('down'),
+    startBtn: runOp('startBtn'),
+    selectBtn: runOp('selectBtn'),
     push: Stack.push,
     change: Stack.change,
     pop: Stack.pop,

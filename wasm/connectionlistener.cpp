@@ -8,27 +8,22 @@
 #include <emscripten/threading.h>
 
 void MoonlightInstance::ClStageStarting(int stage) {
-  PostToJs(std::string("ProgressMsg: Starting ") +
-           std::string(LiGetStageName(stage)) + std::string("..."));
+  PostToJs(std::string("ProgressMsg: Starting ") + std::string(LiGetStageName(stage)) + std::string("..."));
 }
 
 void MoonlightInstance::ClStageFailed(int stage, int errorCode) {
-  PostToJs(std::string("DialogMsg: ") + std::string(LiGetStageName(stage)) +
-           std::string(" failed (error ") + std::to_string(errorCode) +
-           std::string(")"));
+  PostToJs(std::string("DialogMsg: ") + std::string(LiGetStageName(stage)) + std::string(" failed (error ") + std::to_string(errorCode) + std::string(")"));
 }
 
 void MoonlightInstance::ClConnectionStarted(void) {
-  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_V,
-                                             onConnectionStarted);
+  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_V, onConnectionStarted);
 }
 
 void MoonlightInstance::ClConnectionTerminated(int errorCode) {
   // Teardown the connection
   LiStopConnection();
 
-  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI,
-                                             onConnectionStopped, errorCode);
+  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, onConnectionStopped, errorCode);
 }
 
 void MoonlightInstance::ClDisplayMessage(const char* message) {
@@ -39,7 +34,9 @@ void MoonlightInstance::ClDisplayTransientMessage(const char* message) {
   PostToJs(std::string("TransientMsg: ") + std::string(message));
 }
 
-void onConnectionStarted() { g_Instance->OnConnectionStarted(0); }
+void onConnectionStarted() {
+  g_Instance->OnConnectionStarted(0);
+}
 
 void onConnectionStopped(int errorCode) {
   g_Instance->OnConnectionStopped(errorCode);
@@ -63,5 +60,5 @@ CONNECTION_LISTENER_CALLBACKS MoonlightInstance::s_ClCallbacks = {
     .connectionStarted = MoonlightInstance::ClConnectionStarted,
     .connectionTerminated = MoonlightInstance::ClConnectionTerminated,
     .logMessage = MoonlightInstance::ClLogMessage,
+    .rumble = MoonlightInstance::ClControllerRumble,
 };
-

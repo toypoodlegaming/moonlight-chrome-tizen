@@ -13,20 +13,19 @@ body {
 }
 span.mdl-layout-title {
     font-weight: 300;
+    font-size: 24px;
 }
 span.mdl-layout-title > span {
     font-weight: 900;
+    font-size: 24px;
     color: #00A3C6;
 }
-
 .mdl-layout__header-row {
     padding: 0 80px 0 80px;
 }
-
 main {
     padding: 0 80px 0 80px;
 }
-
 @media screen and (max-width: 600px) {
     #host-grid .mdl-card {
         flex-basis: 50% !important;
@@ -36,7 +35,6 @@ main {
         width: 75px !important;
     }
 }
-
 @media screen and (min-width: 600px) and (max-width: 800px) {
     #host-grid .mdl-card {
         flex-basis: 33% !important;
@@ -46,7 +44,6 @@ main {
         width: 112.5px !important;
     }
 }
-
 @media screen and (min-width: 800px) and (max-width: 1024px) {
     main {
         padding: 0 72px 0 72px !important;
@@ -62,14 +59,12 @@ main {
         width: 150px !important;
     }
 }
-
 @media screen and (min-width: 1024px) {
     #game-grid .mdl-card {
         height: 300px !important;
         width: 225px !important;
     }
 }
-
 .nav-menu-parent {
     position: relative;
     margin: 0 4px;
@@ -80,9 +75,13 @@ main {
 }
 .mdl-menu__item {
     color: white;
+    font-size: 14px;
 }
 .mdl-menu__item:hover {
     background-color: #00A3C6;
+}
+.mdl-tooltip {
+    font-size: 12px;
 }
 #bitrateField {
     width: 100px;
@@ -93,7 +92,6 @@ main {
 .bitrateMenu {
     width: 170px;
 }
-
 .mdl-button {
     color: #fff !important;
 }
@@ -113,23 +111,28 @@ main {
     cursor: pointer;
 }
 .mdl-dialog {
-    width: 400px;
+    width: 500px;
     background-color: #333846;
     color: white;
 }
 .mdl-dialog__title {
-    padding: 24px 24px 0;
+    padding: 24px 24px 14px;
     margin: 0;
     font-size: 2.5rem;
 }
 .mdl-dialog__content {
-    padding: 20px 24px 24px 24px;
+    padding: 20px 24px 14px 24px;
     color: rgba(255, 255, 255, 0.90);
 }
+.mdl-dialog__actions button {
+    width: 100%;
+}
 .mdl-textfield__input {
+    width: 152%;
     border-bottom: 1px solid rgba(255, 255, 255, 0.90);
 }
 .mdl-textfield__label {
+    font-size: 1.1rem;
     color: rgba(255, 255, 255, 0.90);
 }
 #naclSpinner {
@@ -199,9 +202,13 @@ main {
 }
 #host-grid .mdl-card__title .mdl-card__title-text {
     width: 100%;
-    font-size: 14px;
+    font-size: 16px;
     padding: 10px 15px;
     background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+}
+#host-grid .mdl-shadow--4dp {
+    box-shadow: unset;
 }
 #game-grid .mdl-card img {
     height: 100%;
@@ -217,7 +224,7 @@ main {
     position: absolute;
     bottom: 0;
     min-height: 20px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 300;
     padding: 5px 0;
     width: 100%;
@@ -230,13 +237,19 @@ main {
 }
 .add-host-card > .mdl-card__title {
     color: #fff;
-    background:
-            url('../res/ic_add_to_queue_white_48px.svg') center no-repeat #3E4454;
+    background: url('../res/ic_add_to_queue_white_48px.svg') center no-repeat #3E4454;
 }
 .host-container > .mdl-card__title {
     color: #fff;
-    background:
-            url('../res/ic_tv_white_48px.svg') center no-repeat #3E4454;
+    background: url('../res/ic_tv_white_48px.svg') center no-repeat #3E4454;
+}
+.mdl-card.hovered {
+    background-color: initial;
+    transform: scale(1.1);
+    outline-color: #00A3C6;
+}
+.hovered {
+    background-color: rgba(158,158,158,.2);
 }
 #host-grid p {
     margin: 0;
@@ -322,17 +335,52 @@ main {
 .cancel-current .game-title {
     color: #fff;
 }
-
-.hovered {
-    background-color: rgba(158,158,158,.2);
+#pairingDialogText, #quitAppDialogText,
+#deleteHostDialogText, #restartMoonlightDialogText, #terminateMoonlightDialogText {
+    font-size: 1.1rem;
 }
-
-.mdl-card.hovered {
-    background-color: initial;
-    transform: scale(1.1);
-    outline-color: #00A3C6;
+#continueAddHost {
+    width: 48%;
 }
-
-#host-grid .mdl-shadow--4dp {
-    box-shadow: unset;
+#cancelAddHost {
+    width: 48%;
+    margin: 0 10px 20px 0;
+}
+#continueDeleteHost {
+    width: 48%;
+}
+#cancelDeleteHost {
+    width: 48%;
+    margin: 0 10px 20px 0;
+}
+#cancelPairingDialog {
+    margin: 0 10px 20px 0;
+}
+#continueQuitApp {
+    width: 48%;
+}
+#cancelQuitApp {
+    width: 48%;
+    margin: 0 10px 20px 0;
+}
+#exitTerminateMoonlight {
+    width: 48%;
+}
+#cancelTerminateMoonlight{
+    width: 48%;
+    margin: 0 10px 20px 0;
+}
+#continueAddHost:focus, #cancelAddHost:focus,
+#continueDeleteHost:focus, #cancelDeleteHost:focus,
+#cancelPairingDialog:focus, #removeHostButton:focus,
+#backIcon:focus, #quitCurrentApp:focus,
+#continueQuitApp:focus, #cancelQuitApp:focus,
+#exitTerminateMoonlight:focus, #cancelTerminateMoonlight:focus {
+    background-color: #404354;
+    box-shadow: rgba(0, 163, 198, 1) 0px 0px 2px 4px;
+}
+#modelCodePlaceholder {
+  position: fixed;
+  bottom: 1cm;
+  left: 1cm;
 }

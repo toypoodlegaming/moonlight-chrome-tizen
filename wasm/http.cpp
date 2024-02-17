@@ -43,8 +43,7 @@ MessageResult MoonlightInstance::MakeCert() {
   return MessageResult::Resolve(ret);
 }
 
-LoadResult MoonlightInstance::LoadCert(const char* certStr,
-                                       const char* keyStr) {
+LoadResult MoonlightInstance::LoadCert(const char* certStr, const char* keyStr) {
   char* _certStr = strdup(certStr);
   char* _keyStr = strdup(keyStr);
 
@@ -72,9 +71,7 @@ LoadResult MoonlightInstance::LoadCert(const char* certStr,
   return LoadResult::Success;
 }
 
-MessageResult MoonlightInstance::HttpInit(std::string cert,
-                                          std::string privateKey,
-                                          std::string myUniqueId) {
+MessageResult MoonlightInstance::HttpInit(std::string cert, std::string privateKey, std::string myUniqueId) {
   LoadResult res = LoadResult::Success;
   res = LoadCert(cert.c_str(), privateKey.c_str());
   if (res == LoadResult::CertErr) {
@@ -100,14 +97,12 @@ MessageResult MoonlightInstance::HttpInit(std::string cert,
   return MessageResult::Resolve();
 }
 
-void MoonlightInstance::OpenUrl_private(int callbackId, std::string url,
-                                        std::string ppk, bool binaryResponse) {
+void MoonlightInstance::OpenUrl_private(int callbackId, std::string url, std::string ppk, bool binaryResponse) {
   PHTTP_DATA data = http_create_data();
   int err;
 
   if (data == NULL) {
-    PostPromiseMessage(callbackId, "reject",
-                       "Error when creating data buffer.");
+    PostPromiseMessage(callbackId, "reject", "Error when creating data buffer.");
     return;
   }
 
@@ -135,25 +130,17 @@ void MoonlightInstance::OpenUrl_private(int callbackId, std::string url,
   }
 }
 
-void MoonlightInstance::OpenUrl(int callbackId, std::string url,
-                                std::string ppk, bool binaryResponse) {
-  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private,
-                                  this,
-                                  callbackId,
-                                  url,
-                                  ppk,
-                                  binaryResponse), false);
+void MoonlightInstance::OpenUrl(int callbackId, std::string url, std::string ppk, bool binaryResponse) {
+  m_Dispatcher.post_job(std::bind(&MoonlightInstance::OpenUrl_private, this, callbackId, url, ppk, binaryResponse), false);
 }
 
 MessageResult makeCert() { return g_Instance->MakeCert(); }
 
-MessageResult httpInit(std::string cert, std::string privateKey,
-                       std::string myUniqueId) {
+MessageResult httpInit(std::string cert, std::string privateKey, std::string myUniqueId) {
   return g_Instance->HttpInit(cert, privateKey, myUniqueId);
 }
 
-void openUrl(int callbackId, std::string url, emscripten::val ppk,
-             bool binaryResponse) {
+void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryResponse) {
   std::string ppkstr = "";
   if (ppk != emscripten::val::null()) {
     ppkstr = ppk.as<std::string>();

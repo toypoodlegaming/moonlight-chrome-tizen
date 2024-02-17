@@ -106,6 +106,7 @@ add_library(opus STATIC
     opus/silk/CNG.c
     opus/silk/HP_variable_cutoff.c
     opus/silk/LPC_analysis_filter.c
+    opus/silk/LPC_fit.c
     opus/silk/LPC_inv_pred_gain.c
     opus/silk/LP_variable_cutoff.c
     opus/silk/NLSF2A.c
@@ -157,14 +158,12 @@ add_library(opus STATIC
     opus/silk/fixed/k2a_Q16_FIX.c
     opus/silk/fixed/noise_shape_analysis_FIX.c
     opus/silk/fixed/pitch_analysis_core_FIX.c
-    opus/silk/fixed/prefilter_FIX.c
     opus/silk/fixed/process_gains_FIX.c
     opus/silk/fixed/regularize_correlations_FIX.c
     opus/silk/fixed/residual_energy16_FIX.c
     opus/silk/fixed/residual_energy_FIX.c
     opus/silk/fixed/schur64_FIX.c
     opus/silk/fixed/schur_FIX.c
-    opus/silk/fixed/solve_LS_FIX.c
     opus/silk/fixed/vector_ops_FIX.c
     opus/silk/fixed/warped_autocorrelation_FIX.c
     opus/silk/gain_quant.c
@@ -297,4 +296,3 @@ install(DIRECTORY wasm/platform DESTINATION widget)
 install(FILES wasm/index.html DESTINATION widget)
 install(FILES res/config.xml DESTINATION widget)
 install(FILES res/platform.js DESTINATION widget)
-

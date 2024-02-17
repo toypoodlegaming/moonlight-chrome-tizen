@@ -43,7 +43,7 @@ const Controller = (function() {
   }
 
   function gamepadDisconnected(gamepad) {
-    gamepads.delete(gamepad.index);
+    delete gamepad[gamepad.index];
   }
 
   function analyzeGamepad(gamepad) {

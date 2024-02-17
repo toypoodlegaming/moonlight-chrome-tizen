@@ -104,8 +104,8 @@ void MoonlightInstance::VideoTrackListener::OnTrackOpen() {
   ClLogMessage("VIDEO ElementaryMediaTrack::OnTrackOpen\n");
   std::unique_lock<std::mutex> lock(m_Instance->m_Mutex);
   m_Instance->m_VideoStarted = true;
-  m_Instance->m_RequestIdrFrame = true;
   m_Instance->m_EmssVideoStateChanged.notify_all();
+  LiRequestIdrFrame();
 }
 
 void MoonlightInstance::VideoTrackListener::OnTrackClosed(
@@ -126,7 +126,7 @@ void MoonlightInstance::DidChangeFocus(bool got_focus) {
   // Request an IDR frame to dump the frame queue that may have
   // built up from the GL pipeline being stalled.
   if (got_focus) {
-    g_Instance->m_RequestIdrFrame = true;
+    LiRequestIdrFrame();
   }
 }
 
@@ -135,8 +135,7 @@ bool MoonlightInstance::InitializeRenderingSurface(int width, int height) {
 }
 
 int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width,
-                                          int height, int redrawRate,
-                                          void* context, int drFlags) {
+int height, int redrawRate, void* context, int drFlags) {
   g_Instance->m_MediaElement.SetSrc(&g_Instance->m_Source);
   ClLogMessage("Waiting for closed\n");
   g_Instance->WaitFor(&g_Instance->m_EmssStateChanged, [] {
@@ -146,12 +145,12 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width,
 
   {
     auto add_track_result = g_Instance->m_Source.AddTrack(
-        samsung::wasm::ElementaryAudioTrackConfig {
-            "audio/webm; codecs=\"pcm\"",  // mimeType
-            {},  // extradata (empty?)
-            samsung::wasm::SampleFormat::kS16,
-            samsung::wasm::ChannelLayout::kStereo,
-            kSampleRate
+      samsung::wasm::ElementaryAudioTrackConfig {
+        "audio/webm; codecs=\"pcm\"",  // mimeType
+        {},  // extradata (empty?)
+        samsung::wasm::SampleFormat::kS16,
+        samsung::wasm::ChannelLayout::kStereo,
+        kSampleRate
       });
     if (add_track_result) {
       g_Instance->m_AudioTrack = std::move(*add_track_result);
@@ -160,14 +159,28 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width,
   }
 
   {
+    const char *mimetype = "video/mp4";
+    if(videoFormat & VIDEO_FORMAT_H265_MAIN10) {
+      mimetype = "video/mp4; codecs=\"hev1.2.4.L153.B0\"";  // h265 main10 mimeType	: hev1.2.4.L153.B0 can be updated to hev1.2.6.L153.B0 depending on TV capabilities
+    } else if(videoFormat & VIDEO_FORMAT_H265) {
+      mimetype = "video/mp4; codecs=\"hev1.1.6.L93.B0\"";  // h265 main mimeType
+    } else if(videoFormat & VIDEO_FORMAT_H264) {
+      mimetype = "video/mp4; codecs=\"avc1.64002A\"";  // h264 High Profile 4.2 mimeType
+    }
+    else {
+      ClLogMessage("Cannot select mime type for videoFormat=0x%x\n", videoFormat);
+      return -1;
+    }
+
+    ClLogMessage("Using mimeType %s\n", mimetype);
     auto add_track_result = g_Instance->m_Source.AddTrack(
       samsung::wasm::ElementaryVideoTrackConfig{
-          "video/mp4; codecs=\"hev1.2.4.L120.B0\"",  // h265 mimeType
-          {},                                   // extradata (empty?)
-          static_cast<uint32_t>(width),
-          static_cast<uint32_t>(height),
-          static_cast<uint32_t>(redrawRate),  // framerateNum
-          1,                                  // framerateDen
+        mimetype,
+        {},                                   // extradata (empty?)
+        static_cast<uint32_t>(width),
+        static_cast<uint32_t>(height),
+        static_cast<uint32_t>(redrawRate),  // framerateNum
+        1,                                  // framerateDen
       });
     if (add_track_result) {
       g_Instance->m_VideoTrack = std::move(*add_track_result);
@@ -200,7 +213,7 @@ int MoonlightInstance::StartupVidDecSetup(int videoFormat, int width,
 }
 
 int MoonlightInstance::VidDecSetup(int videoFormat, int width, int height,
-                                   int redrawRate, void* context, int drFlags) {
+int redrawRate, void* context, int drFlags) {
   ClLogMessage("MoonlightInstance::VidDecSetup\n");
   s_DecodeBuffer.resize(INITIAL_DECODE_BUFFER_LEN);
 
@@ -218,7 +231,7 @@ int MoonlightInstance::VidDecSetup(int videoFormat, int width, int height,
 
   static std::once_flag once_flag;
   std::call_once(once_flag, &MoonlightInstance::StartupVidDecSetup,
-                 videoFormat, width, height, redrawRate, context, drFlags);
+  videoFormat, width, height, redrawRate, context, drFlags);
   return DR_OK;
 }
 
@@ -237,12 +250,6 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
   unsigned int offset;
   unsigned int totalLength;
   // ClLogMessage("Video packet append at: %f\n", s_pktPts);
-
-  // Request an IDR frame if needed
-  if (g_Instance->m_RequestIdrFrame) {
-    g_Instance->m_RequestIdrFrame = false;
-    return DR_NEED_IDR;
-  }
 
   totalLength = decodeUnit->fullLength;
   // Resize the decode buffer if needed
@@ -279,17 +286,17 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
 
   // Start the decoding
   samsung::wasm::ElementaryMediaPacket pkt{
-      s_pktPts,
-      s_pktPts,
-      s_frameDuration,
-      decodeUnit->frameType == FRAME_TYPE_IDR,
-      offset,
-      s_DecodeBuffer.data(),
-      s_Width,
-      s_Height,
-      s_Framerate,
-      1,
-      g_Instance->m_VideoSessionId.load()
+    s_pktPts,
+    s_pktPts,
+    s_frameDuration,
+    decodeUnit->frameType == FRAME_TYPE_IDR,
+    offset,
+    s_DecodeBuffer.data(),
+    s_Width,
+    s_Height,
+    s_Framerate,
+    1,
+    g_Instance->m_VideoSessionId.load()
   };
 
   if (g_Instance->m_VideoTrack.AppendPacket(pkt)) {
@@ -303,13 +310,14 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
 }
 
 void MoonlightInstance::WaitFor(std::condition_variable* variable,
-                                std::function<bool()> condition) {
+std::function<bool()> condition) {
   std::unique_lock<std::mutex> lock(m_Mutex);
   variable->wait(lock, condition);
 }
 
 DECODER_RENDERER_CALLBACKS MoonlightInstance::s_DrCallbacks = {
-    .setup = MoonlightInstance::VidDecSetup,
-    .cleanup = MoonlightInstance::VidDecCleanup,
-    .submitDecodeUnit = MoonlightInstance::VidDecSubmitDecodeUnit,
-    .capabilities = CAPABILITY_SLICES_PER_FRAME(4)};
+  .setup = MoonlightInstance::VidDecSetup,
+  .cleanup = MoonlightInstance::VidDecCleanup,
+  .submitDecodeUnit = MoonlightInstance::VidDecSubmitDecodeUnit,
+  .capabilities = CAPABILITY_SLICES_PER_FRAME(4)
+};

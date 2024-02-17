@@ -40,8 +40,7 @@ EM_BOOL MoonlightInstance::HandleMouseDown(const EmscriptenMouseEvent &event) {
     m_MouseLastPosY = event.screenY;
     return EM_TRUE;
   }
-  LiSendMouseButtonEvent(BUTTON_ACTION_PRESS,
-                         ConvertButtonToLiButton(event.button));
+  LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, ConvertButtonToLiButton(event.button));
   return EM_TRUE;
 }
 
@@ -64,8 +63,7 @@ EM_BOOL MoonlightInstance::HandleMouseUp(const EmscriptenMouseEvent &event) {
     return EM_FALSE;
   }
 
-  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE,
-                         ConvertButtonToLiButton(event.button));
+  LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, ConvertButtonToLiButton(event.button));
   return EM_TRUE;
 }
 
@@ -119,43 +117,34 @@ EM_BOOL MoonlightInstance::HandleKeyUp(const EmscriptenKeyboardEvent &event) {
   return EM_TRUE;
 }
 
-EM_BOOL handleKeyDown(int eventType, const EmscriptenKeyboardEvent *event,
-                      void *userData) {
+EM_BOOL handleKeyDown(int eventType, const EmscriptenKeyboardEvent *event, void *userData) {
   return g_Instance->HandleKeyDown(*event);
 }
 
-EM_BOOL handleKeyUp(int eventType, const EmscriptenKeyboardEvent *event,
-                    void *userData) {
+EM_BOOL handleKeyUp(int eventType, const EmscriptenKeyboardEvent *event, void *userData) {
   return g_Instance->HandleKeyUp(*event);
 }
 
-EM_BOOL handleMouseMove(int eventType, const EmscriptenMouseEvent *event,
-                        void *userData) {
+EM_BOOL handleMouseMove(int eventType, const EmscriptenMouseEvent *event, void *userData) {
   return g_Instance->HandleMouseMove(*event);
 }
 
-EM_BOOL handleMouseUp(int eventType, const EmscriptenMouseEvent *event,
-                      void *userData) {
+EM_BOOL handleMouseUp(int eventType, const EmscriptenMouseEvent *event, void *userData) {
   return g_Instance->HandleMouseUp(*event);
 }
 
-EM_BOOL handleMouseDown(int eventType, const EmscriptenMouseEvent *event,
-                        void *userData) {
+EM_BOOL handleMouseDown(int eventType, const EmscriptenMouseEvent *event, void *userData) {
   return g_Instance->HandleMouseDown(*event);
 }
 
-EM_BOOL handleWheel(int eventType, const EmscriptenWheelEvent *event,
-                    void *userData) {
+EM_BOOL handleWheel(int eventType, const EmscriptenWheelEvent *event, void *userData) {
   return g_Instance->HandleWheel(*event);
 }
 
-EM_BOOL handlePointerLockChange(
-    int eventType,
-    const EmscriptenPointerlockChangeEvent *pointerlockChangeEvent,
-    void *userData) {
-  if (!pointerlockChangeEvent)
+EM_BOOL handlePointerLockChange(int eventType, const EmscriptenPointerlockChangeEvent *pointerlockChangeEvent, void *userData) {
+  if (!pointerlockChangeEvent) {
     return false;
-
+  }
   if (pointerlockChangeEvent->isActive) {
     g_Instance->DidLockMouse(0);
   } else {
@@ -164,9 +153,7 @@ EM_BOOL handlePointerLockChange(
   return true;
 }
 
-EM_BOOL handlePointerLockError(int eventType,
-                               const void *reserved,
-                               void *userData) {
+EM_BOOL handlePointerLockError(int eventType, const void *reserved, void *userData) {
   g_Instance->DidLockMouse(eventType);
   return true;
 }
@@ -200,5 +187,5 @@ void MoonlightInstance::DidLockMouse(int32_t result) {
 }
 
 void MoonlightInstance::MouseLockLost() {
-    m_MouseLocked = false;
+  m_MouseLocked = false;
 }

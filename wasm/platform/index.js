@@ -5,6 +5,23 @@ var myUniqueid = '0123456789ABCDEF'; // Use the same UID as other Moonlight clie
 var api; // `api` should only be set if we're in a host-specific screen. on the initial screen it should always be null.
 var isInGame = false; // flag indicating whether the game stream started
 var windowState = 'normal'; // chrome's windowState, possible values: 'normal' or 'fullscreen'
+var isDialogOpen = false; // track whether the dialog is open
+var model = null;
+var modelcode = null;
+
+let repeatInterval;
+let repeatTimeout;
+
+function loadProductInfo() {
+  var modelCodePlaceholder = document.getElementById("modelCodePlaceholder");
+  if (modelCodePlaceholder) {
+      model = webapis.productinfo.getModel();
+      modelcode = webapis.productinfo.getModelCode();
+      console.log("TV model: ", model);
+      console.log("TV modelcode: ", modelcode);
+      modelCodePlaceholder.innerText = "TV Model :" + (model ? model : "Not Available") + "    ;    ModelCode :" + (modelcode ? modelcode : "Not Available");
+  }
+}
 
 // Called by the common.js module.
 function attachListeners() {
@@ -18,6 +35,8 @@ function attachListeners() {
   $('#optimizeGamesSwitch').on('click', saveOptimize);
   $('#framePacingSwitch').on('click', saveFramePacing);
   $('#audioSyncSwitch').on('click', saveAudioSync);
+  $('#hdrSwitch').on('click', saveHdr);
+  $('.codecVideoMenu li').on('click', saveCodecVideo);													  
   $('#addHostCell').on('click', addHost);
   $('#backIcon').on('click', showHostsAndSettingsMode);
   $('#quitCurrentApp').on('click', stopGameWithConfirmation);
@@ -30,6 +49,7 @@ function attachListeners() {
         Navigation.push(view);
     });
   }
+  registerMenu('selectCodecVideo', Views.SelectCodecVideoMenu);															   
   registerMenu('selectResolution', Views.SelectResolutionMenu);
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('bandwidthMenu', Views.SelectBitrateMenu);
@@ -44,21 +64,39 @@ function attachListeners() {
     const pressed = e.detail.pressed;
     const key = e.detail.key;
 
-    if (!pressed)
-      return;
+    if (pressed) {
+        const gamepadMapping = {
+            0: () => Navigation.accept(),
+            1: () => Navigation.back(),
+            8: () => Navigation.selectBtn(),
+            9: () => Navigation.startBtn(),
+            12: () => startRepeatAction(() => Navigation.up()),
+            13: () => startRepeatAction(() => Navigation.down()),
+            14: () => Navigation.left(),
+            15: () => Navigation.right(),
+        };
 
-    const gamepadMapping = {
-      0: () => Navigation.accept(),
-      1: () => Navigation.back(),
-      12: () => Navigation.up(),
-      13: () => Navigation.down(),
-      14: () => Navigation.left(),
-      15: () => Navigation.right(),
-    };
-    if (gamepadMapping[key]) {
-      gamepadMapping[key]();
+        if (gamepadMapping[key]) {
+            gamepadMapping[key]();
+        }
+    } else {
+        stopRepeatAction();
     }
   });
+}
+
+function startRepeatAction(actionFunction) {
+    clearTimeout(repeatTimeout);
+    actionFunction();
+    repeatTimeout = setTimeout(() => {
+        actionFunction();
+        repeatInterval = setInterval(actionFunction, 100);
+    }, 350);
+}
+
+function stopRepeatAction() {
+    clearInterval(repeatInterval);
+    clearTimeout(repeatTimeout);
 }
 
 function fullscreenChromeWindow() {
@@ -78,7 +116,7 @@ function loadWindowState() {
   }
 
   console.log('restoring state');
-  chrome.storage.sync.get('windowState', function (item) {
+  chrome.storage.sync.get('windowState', function(item) {
     // load stored window state
     windowState = (item && item.windowState) ?
       item.windowState :
@@ -131,14 +169,14 @@ function restoreUiAfterNaClLoad() {
   Navigation.push(Views.Hosts);
   showHostsAndSettingsMode();
 
-  findNvService(function (finder, opt_error) {
+  findNvService(function(finder, opt_error) {
     if (finder.byService_['_nvstream._tcp']) {
       var ips = Object.keys(finder.byService_['_nvstream._tcp']);
       for (var i in ips) {
         var ip = ips[i];
         if (finder.byService_['_nvstream._tcp'][ip]) {
           var mDnsDiscoveredHost = new NvHTTP(ip, myUniqueid);
-          mDnsDiscoveredHost.pollServer(function (returneMdnsDiscoveredHost) {
+          mDnsDiscoveredHost.pollServer(function(returneMdnsDiscoveredHost) {
             // Just drop this if the host doesn't respond
             if (!returneMdnsDiscoveredHost.online) {
               return;
@@ -167,9 +205,9 @@ function beginBackgroundPollingOfHost(host) {
   if (host.online) {
     el.classList.remove('host-cell-inactive')
     // The host was already online. Just start polling in the background now.
-    activePolls[host.serverUid] = window.setInterval(function () {
+    activePolls[host.serverUid] = window.setInterval(function() {
       // every 5 seconds, poll at the address we know it was live at
-      host.pollServer(function () {
+      host.pollServer(function() {
         if (host.online) {
           el.classList.remove('host-cell-inactive')
         } else {
@@ -180,7 +218,7 @@ function beginBackgroundPollingOfHost(host) {
   } else {
     el.classList.add('host-cell-inactive')
     // The host was offline, so poll immediately.
-    host.pollServer(function () {
+    host.pollServer(function() {
       if (host.online) {
         el.classList.remove('host-cell-inactive')
       } else {
@@ -188,9 +226,9 @@ function beginBackgroundPollingOfHost(host) {
       }
 
       // Now start background polling
-      activePolls[host.serverUid] = window.setInterval(function () {
+      activePolls[host.serverUid] = window.setInterval(function() {
         // every 5 seconds, poll at the address we know it was live at
-        host.pollServer(function () {
+        host.pollServer(function() {
           if (host.online) {
             el.classList.remove('host-cell-inactive')
           } else {
@@ -238,7 +276,7 @@ function moduleDidLoad() {
 // pair to the given NvHTTP host object.  Returns whether pairing was successful.
 function pairTo(nvhttpHost, onSuccess, onFailure) {
   if (!onFailure) {
-    onFailure = function () { }
+    onFailure = function() {}
   }
 
   if (!pairingCert) {
@@ -248,9 +286,9 @@ function pairTo(nvhttpHost, onSuccess, onFailure) {
     return;
   }
 
-  nvhttpHost.pollServer(function (ret) {
+  nvhttpHost.pollServer(function(ret) {
     if (!nvhttpHost.online) {
-      snackbarLog('Failed to connect to ' + nvhttpHost.hostname + '! Ensure that GameStream is enabled in GeForce Experience.');
+      snackbarLog('Failed to connect to ' + nvhttpHost.hostname + '! Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.');
       console.error('%c[index.js]', 'color: green;', 'Host declared as offline:', nvhttpHost, nvhttpHost.toString()); //Logging both the object and the toString version for text logs
       onFailure();
       return;
@@ -263,23 +301,24 @@ function pairTo(nvhttpHost, onSuccess, onFailure) {
 
     var randomNumber = String("0000" + (Math.random() * 10000 | 0)).slice(-4);
     var pairingDialog = document.querySelector('#pairingDialog');
-    $('#pairingDialogText').html('Please enter the number ' + randomNumber + ' on the GFE dialog on the computer.  This dialog will be dismissed once complete');
+    $('#pairingDialogText').html('Please enter the following PIN on the target PC:  ' + randomNumber + '<br><br>If your host PC is running Sunshine, navigate to the Sunshine web UI to enter the PIN.<br>Alternatively, navigate to the GeForce Experience (NVIDIA GPUs only) to enter the PIN.<br><br>This dialog will close once the pairing is complete.');
+    pairingDialog.close();
     pairingDialog.showModal();
     Navigation.push(Views.PairingDialog);
 
     $('#cancelPairingDialog').off('click');
-    $('#cancelPairingDialog').on('click', function () {
+    $('#cancelPairingDialog').on('click', function() {
       pairingDialog.close();
       Navigation.pop();
     });
 
     console.log('%c[index.js]', 'color: green;', 'Sending pairing request to ' + nvhttpHost.hostname + ' with PIN: ' + randomNumber);
-    nvhttpHost.pair(randomNumber).then(function () {
+    nvhttpHost.pair(randomNumber).then(function() {
       snackbarLog('Pairing successful');
       pairingDialog.close();
       Navigation.pop();
       onSuccess();
-    }, function (failedPairing) {
+    }, function(failedPairing) {
       snackbarLog('Failed pairing to: ' + nvhttpHost.hostname);
       if (nvhttpHost.currentGame != 0) {
         $('#pairingDialogText').html('Error: ' + nvhttpHost.hostname + ' is busy.  Stop streaming to pair.');
@@ -293,7 +332,6 @@ function pairTo(nvhttpHost, onSuccess, onFailure) {
 }
 
 function hostChosen(host) {
-
   if (!host.online) {
     return;
   }
@@ -304,12 +342,12 @@ function hostChosen(host) {
   api = host;
   if (!host.paired) {
     // Still not paired; go to the pairing flow
-    pairTo(host, function () {
-      showApps(host);
-      saveHosts();
-      Navigation.push(Views.Apps);
-    },
-      function () {
+    pairTo(host, function() {
+        showApps(host);
+        saveHosts();
+        Navigation.push(Views.Apps);
+      },
+      function() {
         startPollingHosts();
       });
   } else {
@@ -328,18 +366,28 @@ function addHost() {
 
   // drop the dialog if they cancel
   $('#cancelAddHost').off('click');
-  $('#cancelAddHost').on('click', function () {
+  $('#cancelAddHost').on('click', function() {
     modal.close();
     Navigation.pop();
   });
 
   // try to pair if they continue
   $('#continueAddHost').off('click');
-  $('#continueAddHost').on('click', function () {
-    var inputHost = $('#dialogInputHost').val();
+  $('#continueAddHost').on('click', function() {
+	var inputHost;
+	if ($('#manualInputToggle').prop('checked')) {
+	      // Manual input is selected
+	      inputHost = $('#manualIPAddress').val();
+  } else {
+	var ipPart1 = $('#ipPart1').val();
+	var ipPart2 = $('#ipPart2').val();
+	var ipPart3 = $('#ipPart3').val();
+	var ipPart4 = $('#ipPart4').val();
+	inputHost = ipPart1 + '.' + ipPart2 + '.' + ipPart3 + '.' + ipPart4;
+  }
     var _nvhttpHost = new NvHTTP(inputHost, myUniqueid, inputHost);
 
-    _nvhttpHost.refreshServerInfoAtAddress(inputHost).then(function (success) {
+    _nvhttpHost.refreshServerInfoAtAddress(inputHost).then(function(success) {
       modal.close();
       Navigation.pop();
 
@@ -351,12 +399,12 @@ function addHost() {
         hosts[_nvhttpHost.serverUid].userEnteredAddress = _nvhttpHost.userEnteredAddress;
 
         // Use the host in the array directly to ensure the PPK propagates after pairing
-        pairTo(hosts[_nvhttpHost.serverUid], function () {
+        pairTo(hosts[_nvhttpHost.serverUid], function() {
           saveHosts();
         });
       }
       else {
-        pairTo(_nvhttpHost, function () {
+        pairTo(_nvhttpHost, function() {
           // Host must be in the grid before starting background polling
           addHostToGrid(_nvhttpHost);
           beginBackgroundPollingOfHost(_nvhttpHost);
@@ -364,16 +412,15 @@ function addHost() {
         });
       }
     }.bind(this),
-      function (failure) {
-        snackbarLog('Failed to connect to ' + _nvhttpHost.hostname + '! Ensure that GameStream is enabled in GeForce Experience.');
-      }.bind(this));
+    function(failure) {
+      snackbarLog('Failed to connect to ' + _nvhttpHost.hostname + '! Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.');
+    }.bind(this));
   });
 }
 
 
 // host is an NvHTTP object
 function addHostToGrid(host, ismDNSDiscovered) {
-
   var outerDiv = $("<div>", {
     class: 'host-container mdl-card mdl-shadow--4dp',
     id: 'host-container-' + host.serverUid,
@@ -397,14 +444,14 @@ function addHostToGrid(host, ismDNSDiscovered) {
     'aria-label': 'Remove host ' + host.hostname
   });
   removalButton.off('click');
-  removalButton.click(function () {
+  removalButton.click(function() {
     removeClicked(host);
   });
   cell.off('click');
-  cell.click(function () {
+  cell.click(function() {
     hostChosen(host);
   });
-  outerDiv.keypress(function (e) {
+  outerDiv.keypress(function(e) {
     if (e.keyCode == 13) {
       hostChosen(host);
     }
@@ -429,7 +476,7 @@ function removeClicked(host) {
   Navigation.push(Views.DeleteHostDialog);
 
   $('#cancelDeleteHost').off('click');
-  $('#cancelDeleteHost').on('click', function () {
+  $('#cancelDeleteHost').on('click', function() {
     deleteHostDialog.close();
     Navigation.pop();
   });
@@ -438,13 +485,126 @@ function removeClicked(host) {
   // note: this does not make the host forget the pairing to us.
   // this means we can re-add the host, and will still be paired.
   $('#continueDeleteHost').off('click');
-  $('#continueDeleteHost').on('click', function () {
+  $('#continueDeleteHost').on('click', function() {
     var deleteHostDialog = document.querySelector('#deleteHostDialog');
     $('#host-container-' + host.serverUid).remove();
     delete hosts[host.serverUid]; // remove the host from the array;
     saveHosts();
     deleteHostDialog.close();
     Navigation.pop();
+  });
+}
+
+window.removeClicked = removeClicked;
+
+// Function to create and show the Restart Moonlight dialog
+function showRestartMoonlightDialog() {
+	// Find the existing dialog element
+  var restartMoonlightDialog = document.querySelector('#restartMoonlightDialog');
+  
+    if (!restartMoonlightDialog) {
+    // If the dialog element doesn't exist, create it
+    var restartMoonlightDialog = document.createElement('dialog');
+    restartMoonlightDialog.id = 'restartMoonlightDialog';
+    restartMoonlightDialog.classList.add('mdl-dialog');
+
+    // Create the dialog content
+    restartMoonlightDialog.innerHTML = `
+      <h3 class="mdl-dialog__title">Restart Moonlight</h3>
+      <div class="mdl-dialog__content">
+      <p id="restartMoonlightDialogText">
+        After changing video codec, you should restart the application
+      </p>
+      </div>
+      <div class="mdl-dialog__actions">
+      <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="pressOK">OK</button>
+      </div>
+    `;
+
+    // Append the dialog to the DOM
+    document.body.appendChild(restartMoonlightDialog);
+
+    // Initialize the dialog
+    componentHandler.upgradeElements(restartMoonlightDialog);
+  }
+
+  // Show the dialog and push the view
+  restartMoonlightDialog.showModal();
+  Navigation.push(Views.RestartMoonlightDialog);
+
+  // Set the dialog as open
+  isDialogOpen = true;
+
+  // Close the dialog if the OK button is pressed
+  $('#pressOK').off('click');
+  $('#pressOK').on('click', function() {
+    restartMoonlightDialog.close();
+    // Remove the dialog from the DOM if the dialog is open
+    document.body.removeChild(restartMoonlightDialog);
+    isDialogOpen = false;
+    Navigation.pop();
+  });
+}
+	
+// Function to create and show the Terminate Moonlight dialog
+function showTerminateMoonlightDialog() {
+  // Find the existing dialog element
+  var terminateMoonlightDialog = document.querySelector('#terminateMoonlightDialog');
+
+  if (!terminateMoonlightDialog) {
+    // If the dialog element doesn't exist, create it
+    var terminateMoonlightDialog = document.createElement('dialog');
+    terminateMoonlightDialog.id = 'terminateMoonlightDialog';
+    terminateMoonlightDialog.classList.add('mdl-dialog');
+
+    // Create the dialog content
+    terminateMoonlightDialog.innerHTML = `
+      <h3 class="mdl-dialog__title">Exit Moonlight</h3>
+      <div class="mdl-dialog__content">
+        <p id="terminateMoonlightDialogText">
+          Are you sure you want to exit Moonlight?
+        </p>
+      </div>
+      <div class="mdl-dialog__actions">
+        <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="cancelTerminateMoonlight">Cancel</button>
+        <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="exitTerminateMoonlight">Exit</button>
+      </div>
+    `;
+
+    // Append the dialog to the DOM
+    document.body.appendChild(terminateMoonlightDialog);
+
+    // Initialize the dialog
+    componentHandler.upgradeElements(terminateMoonlightDialog);
+  }
+
+  // Show the dialog and push the view
+  terminateMoonlightDialog.showModal();
+  Navigation.push(Views.TerminateMoonlightDialog);
+
+  // Set the dialog as open
+  isDialogOpen = true;
+
+  // Close the dialog if the Cancel button is pressed
+  $('#cancelTerminateMoonlight').off('click');
+  $('#cancelTerminateMoonlight').on('click', function() {
+    terminateMoonlightDialog.close();
+    // Remove the dialog from the DOM if the dialog is open
+    document.body.removeChild(terminateMoonlightDialog);
+    isDialogOpen = false;
+    Navigation.pop();
+    Navigation.change(Views.Hosts);
+  });
+
+  // Terminate the application if the Exit button is pressed
+  $('#exitTerminateMoonlight').off('click');
+  $('#exitTerminateMoonlight').on('click', function() {
+    terminateMoonlightDialog.close();
+    // Remove the dialog from the DOM if the dialog is open
+    document.body.removeChild(terminateMoonlightDialog);
+    isDialogOpen = false;
+    Navigation.pop();
+    tizen.application.getCurrentApplication().exit();
   });
 }
 
@@ -456,7 +616,7 @@ function removeClicked(host) {
 function stylizeBoxArt(freshApi, appIdToStylize) {
   // If the running game is the good one then style it
   var el = document.querySelector("#game-" + appIdToStylize);
-  if (freshApi.currentGame === appIdToStylize) {
+  if(freshApi.currentGame === appIdToStylize) {
     el.classList.add('current-game')
     el.title += ' (Running)'
   } else {
@@ -510,11 +670,11 @@ function showApps(host) {
 
   $("div.game-container").remove();
 
-  host.getAppList().then(function (appList) {
+  host.getAppList().then(function(appList) {
     $('#naclSpinner').hide();
     $("#game-grid").show();
 
-    if (appList.length == 0) {
+    if(appList.length == 0) {
       console.error('%c[index.js, showApps]', 'User\'s applist is empty')
       var img = new Image()
       img.src = 'static/res/applist_empty.svg'
@@ -525,7 +685,7 @@ function showApps(host) {
     // if game grid is populated, empty it
     const sortedAppList = sortTitles(appList, 'ASC');
 
-    sortedAppList.forEach(function (app) {
+    sortedAppList.forEach(function(app) {
       if ($('#game-' + app.id).length === 0) {
         // double clicking the button will cause multiple box arts to appear.
         // to mitigate this we ensure we don't add a duplicate.
@@ -546,18 +706,18 @@ function showApps(host) {
           gameCard.focus();
         });
         gameCard.addEventListener('keydown', e => {
-          if (e.key == "Enter") {
+          if(e.key == "Enter") {
             startGame(host, app.id);
           }
-          if (e.key == "ArrowLeft") {
+          if(e.key == "ArrowLeft") {
             let prev = gameCard.previousSibling
-            if (prev !== null)
+            if(prev !== null)
               gameCard.previousSibling.focus()
             // TODO: Add a sound when limit reached
           }
-          if (e.key == "ArrowRight") {
+          if(e.key == "ArrowRight") {
             let next = gameCard.nextSibling
-            if (next !== null)
+            if(next !== null)
               gameCard.nextSibling.focus()
             // TODO: Add a sound when limit reached
           }
@@ -567,16 +727,16 @@ function showApps(host) {
         stylizeBoxArt(host, app.id);
       }
       var img = new Image();
-      host.getBoxArt(app.id).then(function (resolvedPromise) {
+      host.getBoxArt(app.id).then(function(resolvedPromise) {
         img.src = resolvedPromise;
-      }, function (failedPromise) {
+      }, function(failedPromise) {
         console.log('%c[index.js, showApps]', 'color: green;', 'Error! Failed to retrieve box art for app ID: ' + app.id + '. Returned value was: ' + failedPromise, '\n Host object:', host, host.toString());
         img.src = 'static/res/placeholder_error.svg'
       });
       img.onload = e => img.classList.add('fade-in');
       $(gameCard).append(img);
     });
-  }, function (failedAppList) {
+  }, function(failedAppList) {
     $('#naclSpinner').hide();
     var img = new Image();
     img.src = 'static/res/applist_error.svg'
@@ -646,11 +806,11 @@ function startGame(host, appID) {
   }
 
   // refresh the server info, because the user might have quit the game.
-  host.refreshServerInfo().then(function (ret) {
-    host.getAppById(appID).then(function (appToStart) {
+  host.refreshServerInfo().then(function(ret) {
+    host.getAppById(appID).then(function(appToStart) {
 
       if (host.currentGame != 0 && host.currentGame != appID) {
-        host.getAppById(host.currentGame).then(function (currentApp) {
+        host.getAppById(host.currentGame).then(function(currentApp) {
           var quitAppDialog = document.querySelector('#quitAppDialog');
           document.getElementById('quitAppDialogText').innerHTML =
             currentApp.title + ' is already running. Would you like to quit ' +
@@ -658,15 +818,15 @@ function startGame(host, appID) {
           quitAppDialog.showModal();
           Navigation.push(Views.CloseAppDialog);
           $('#cancelQuitApp').off('click');
-          $('#cancelQuitApp').on('click', function () {
+          $('#cancelQuitApp').on('click', function() {
             quitAppDialog.close();
             Navigation.pop();
             console.log('[index.js, startGame]', 'color: green;', 'Closing app dialog, and returning');
           });
           $('#continueQuitApp').off('click');
-          $('#continueQuitApp').on('click', function () {
+          $('#continueQuitApp').on('click', function() {
             console.log('[index.js, startGame]', 'color: green;', 'Stopping game, and closing app dialog, and returning');
-            stopGame(host, function () {
+            stopGame(host, function() {
               // please oh please don't infinite loop with recursion
               startGame(host, appID);
             });
@@ -675,7 +835,7 @@ function startGame(host, appID) {
           });
 
           return;
-        }, function (failedCurrentApp) {
+        }, function(failedCurrentApp) {
           console.error('[index.js, startGame]', 'color: green;', 'Failed to get the current running app from host! Returned error was:' + failedCurrentApp, '\n Host object:', host, host.toString());
           return;
         });
@@ -683,6 +843,7 @@ function startGame(host, appID) {
       }
 
       var frameRate = $('#selectFramerate').data('value').toString();
+	  var codecVideo = $('#selectCodecVideo').data('value').toString();
       var optimize = $("#optimizeGamesSwitch").parent().hasClass('is-checked') ? 1 : 0;
       var streamWidth = $('#selectResolution').data('value').split(':')[0];
       var streamHeight = $('#selectResolution').data('value').split(':')[1];
@@ -690,15 +851,18 @@ function startGame(host, appID) {
       var bitrate = parseInt($("#bitrateSlider").val()) * 1000;
       const framePacingEnabled = $('#framePacingSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const audioSyncEnabled = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
+      const hdrEnabled = $('#hdrSwitch').parent().hasClass('is-checked') ? 1 : 0;
       console.log('%c[index.js, startGame]', 'color:green;',
-        'startRequest:' + host.address +
-        ":" + streamWidth +
-        ":" + streamHeight +
-        ":" + frameRate +
-        ":" + bitrate +
-        ":" + optimize +
-        ":" + framePacingEnabled,
-        ":" + audioSyncEnabled);
+                  'startRequest:' + host.address +
+                  ":" + streamWidth +
+                  ":" + streamHeight +
+                  ":" + frameRate +
+                  ":" + bitrate +
+                  ":" + optimize +
+                  ":" + framePacingEnabled,
+                  ":" + audioSyncEnabled,
+                  ":" + hdrEnabled,
+                  ":" + codecVideo);
 
       var rikey = generateRemoteInputKey();
       var rikeyid = generateRemoteInputKeyId();
@@ -710,7 +874,7 @@ function startGame(host, appID) {
       if (host.currentGame == appID) { // if user wants to launch the already-running app, then we resume it.
         return host.resumeApp(
           rikey, rikeyid, 0x030002 // Surround channel mask << 16 | Surround channel count
-        ).then(function (launchResult) {
+        ).then(function(launchResult) {
           $xml = $($.parseXML(launchResult.toString()));
           $root = $xml.find('root');
 
@@ -729,11 +893,14 @@ function startGame(host, appID) {
             rikey,
             rikeyid.toString(),
             host.appVersion,
-            /*host.gfeVersion*/"",
-            framePacingEnabled,
-            audioSyncEnabled
+            "",
+			$root.find('sessionUrl0').text().trim(),
+			framePacingEnabled,
+            audioSyncEnabled,
+            hdrEnabled,
+            codecVideo		 
           ]);
-        }, function (failedResumeApp) {
+        }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color:green;', 'Failed to resume the app! Returned error was' + failedResumeApp);
           showApps(host);
           return;
@@ -749,7 +916,7 @@ function startGame(host, appID) {
         remote_audio_enabled, // Play audio locally too?
         0x030002, // Surround channel mask << 16 | Surround channel count
         gamepadMask
-      ).then(function (launchResult) {
+      ).then(function(launchResult) {
         $xml = $($.parseXML(launchResult.toString()));
         $root = $xml.find('root');
 
@@ -769,10 +936,13 @@ function startGame(host, appID) {
           rikeyid.toString(),
           host.appVersion,
           "",
+		  $root.find('sessionUrl0').text().trim(),
           framePacingEnabled,
-          audioSyncEnabled
+          audioSyncEnabled,
+          hdrEnabled,
+          codecVideo			  
         ]);
-      }, function (failedLaunchApp) {
+      }, function(failedLaunchApp) {
         console.error('%c[index.js, launchApp]', 'color: green;', 'Failed to launch app width id: ' + appID + '\nReturned error was: ' + failedLaunchApp);
         showApps(host);
         return;
@@ -823,21 +993,21 @@ function stopGameWithConfirmation() {
   if (api.currentGame === 0) {
     snackbarLog('Nothing was running');
   } else {
-    api.getAppById(api.currentGame).then(function (currentGame) {
+    api.getAppById(api.currentGame).then(function(currentGame) {
       var quitAppDialog = document.querySelector('#quitAppDialog');
       document.getElementById('quitAppDialogText').innerHTML =
-        ' Are you sure you would like to quit ' +
-        currentGame.title + '?  Unsaved progress will be lost.';
+        ' Are you sure you want to quit ' +
+        currentGame.title + '?  All unsaved data will be lost.';
       quitAppDialog.showModal();
       Navigation.push(Views.CloseAppDialog);
       $('#cancelQuitApp').off('click');
-      $('#cancelQuitApp').on('click', function () {
+      $('#cancelQuitApp').on('click', function() {
         console.log('%c[index.js, stopGameWithConfirmation]', 'color:green;', 'Closing app dialog, and returning');
         quitAppDialog.close();
         Navigation.pop();
       });
       $('#continueQuitApp').off('click');
-      $('#continueQuitApp').on('click', function () {
+      $('#continueQuitApp').on('click', function() {
         console.log('%c[index.js, stopGameWithConfirmation]', 'color:green;', 'Stopping game, and closing app dialog, and returning');
         stopGame(api);
         quitAppDialog.close();
@@ -855,28 +1025,28 @@ function stopGame(host, callbackFunction) {
     return;
   }
 
-  host.refreshServerInfo().then(function (ret) {
-    host.getAppById(host.currentGame).then(function (runningApp) {
+  host.refreshServerInfo().then(function(ret) {
+    host.getAppById(host.currentGame).then(function(runningApp) {
       if (!runningApp) {
         snackbarLog('Nothing was running');
         return;
       }
       var appName = runningApp.title;
       snackbarLog('Stopping ' + appName);
-      host.quitApp().then(function (ret2) {
-        host.refreshServerInfo().then(function (ret3) { // refresh to show no app is currently running.
+      host.quitApp().then(function(ret2) {
+        host.refreshServerInfo().then(function(ret3) { // refresh to show no app is currently running.
           showApps(host);
-          if (typeof (callbackFunction) === "function") callbackFunction();
-        }, function (failedRefreshInfo2) {
+          if (typeof(callbackFunction) === "function") callbackFunction();
+        }, function(failedRefreshInfo2) {
           console.error('%c[index.js, stopGame]', 'color:green;', 'Failed to refresh server info! Returned error was:' + failedRefreshInfo + ' and failed server was:', host, host.toString());
         });
-      }, function (failedQuitApp) {
+      }, function(failedQuitApp) {
         console.error('%c[index.js, stopGame]', 'color:green;', 'Failed to quit app! Returned error was:' + failedQuitApp);
       });
-    }, function (failedGetApp) {
+    }, function(failedGetApp) {
       console.error('%c[index.js, stopGame]', 'color:green;', 'Failed to get app ID! Returned error was:' + failedRefreshInfo);
     });
-  }, function (failedRefreshInfo) {
+  }, function(failedRefreshInfo) {
     console.error('%c[index.js, stopGame]', 'color:green;', 'Failed to refresh server info! Returned error was:' + failedRefreshInfo);
   });
 }
@@ -904,33 +1074,33 @@ function openIndexDB(callback) {
 
   console.log('Opening IndexDB');
   if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persisted().then(persistent => {
+    navigator.storage.persisted().then(persistent=>{
       if (persistent)
         console.log("Storage will not be cleared except by explicit user action");
       else
         console.log("Storage may be cleared by the UA under storage pressure.");
     });
   } else {
-    console.log('Persistent storage not avaialable');
+    console.log('Persistent storage not available');
   }
 
   if (!indexedDB) {
     indexedDB = self.indexedDB || self.webkitIndexedDB ||
-      self.mozIndexedDB || self.OIndexedDB || self.msIndexedDB;
+        self.mozIndexedDB || self.OIndexedDB || self.msIndexedDB;
   }
 
   // Create/open database
   const request = indexedDB.open(dbName, dbVersion);
 
-  request.onerror = function (event) {
+  request.onerror = function(event) {
     console.log('Error creating/accessing IndexedDB database');
   };
 
-  request.onsuccess = function (event) {
+  request.onsuccess = function(event) {
     console.log('Success creating/accessing IndexedDB database');
     db = request.result;
 
-    db.onerror = function (event) {
+    db.onerror = function(event) {
       console.log('Error creating/accessing IndexedDB database');
     };
 
@@ -938,7 +1108,7 @@ function openIndexDB(callback) {
     // Will be deprecated
     if (db.setVersion && db.version != dbVersion) {
       const setVersion = db.setVersion(dbVersion);
-      setVersion.onsuccess = function () {
+      setVersion.onsuccess = function() {
         createObjectStore(db);
         callback();
       };
@@ -948,7 +1118,7 @@ function openIndexDB(callback) {
   };
 
   // For future use. Currently only in latest Firefox versions
-  request.onupgradeneeded = function (event) {
+  request.onupgradeneeded = function(event) {
     createObjectStore(event.target.result);
   };
 }
@@ -966,7 +1136,7 @@ function getData(key, callbackFunction) {
   }
 
   // Non Chrome path
-  let cb = function () {
+  let cb = function() {
     try {
       // Open a transaction to the database
       const transaction = db.transaction(storeName, 'readonly');
@@ -974,9 +1144,9 @@ function getData(key, callbackFunction) {
       const readRequest = transaction.objectStore(storeName).get(key);
 
       // Retrieve the data that was stored
-      readRequest.onsuccess = function (event) {
+      readRequest.onsuccess = function(event) {
         console.log('Read data from the DB key: ' +
-          key + ' value: ' + readRequest.result);
+                    key + ' value: '+ readRequest.result);
         let value = null;
         if (readRequest.result) {
           value = JSON.parse(readRequest.result);
@@ -987,9 +1157,9 @@ function getData(key, callbackFunction) {
         callCb(key, value, callbackFunction);
       };
 
-      transaction.onerror = function (e) {
-        console.error('Erorr reading data at key: "' + key +
-          '" from IndexDB: ' + e);
+      transaction.onerror = function(e) {
+        console.error('Error reading data at key: "' + key +
+                      '" from IndexDB: ' + e);
         callCb(key, value, callbackFunction);
       };
     } catch (e) {
@@ -1016,24 +1186,24 @@ function storeData(key, data, callbackFunction) {
   }
 
   // Non Chrome path
-  let cb = function () {
+  let cb = function() {
     try {
       // Open a transaction to the database
       const transaction = db.transaction(storeName, 'readwrite');
 
-      // Put the text into the dabase
+      // Put the text into the database
       const put = transaction.objectStore(storeName).put(
-        JSON.stringify(data), key);
+                  JSON.stringify(data), key);
 
-      transaction.oncomplete = function (e) {
+      transaction.oncomplete = function(e) {
         console.log('Data at key: ' + key + ' stored as: ' + JSON.stringify(data));
         if (callbackFunction) {
           callbackFunction();
         }
       };
 
-      transaction.onerror = function (e) {
-        console.error('Erorr storing data in IndexDB: ' + e);
+      transaction.onerror = function(e) {
+        console.error('Error storing data in IndexDB: ' + e);
       };
     } catch (e) {
       console.log('storeData: caught exception while storing key:' + key);
@@ -1059,7 +1229,7 @@ function saveResolution() {
 function saveOptimize() {
   // MaterialDesignLight uses the mouseup trigger, so we give it some time to change the class name before
   // checking the new state
-  setTimeout(function () {
+  setTimeout(function() {
     var chosenOptimize = $("#optimizeGamesSwitch").parent().hasClass('is-checked');
     console.log('%c[index.js, saveOptimize]', 'color: green;', 'Saving optimize state : ' + chosenOptimize);
     storeData('optimize', chosenOptimize, null);
@@ -1067,15 +1237,30 @@ function saveOptimize() {
 }
 
 function saveFramePacing() {
-  setTimeout(function () {
+  setTimeout(function() {
     const chosenFramePacing = $("#framePacingSwitch").parent().hasClass('is-checked');
-    console.log('%c[index.js, saveFramePacing]', 'color: green;', 'Saving framePacing state : ' + chosenFramePacing);
+    console.log('%c[index.js, saveFramePacing]', 'color: green;', 'Saving frame pacing state : ' + chosenFramePacing);
     storeData('framePacing', chosenFramePacing, null);
   }, 100);
 }
 
+function saveHdr() {
+  setTimeout(function() {
+    const chosenHDR = $("#hdrSwitch").parent().hasClass('is-checked');
+    console.log('%c[index.js, saveHDR]', 'color: green;', 'Saving HDR state : ' + chosenHDR);
+    storeData('HDR', chosenHDR, null);
+  }, 100);
+}
+
+function saveCodecVideo() {
+  var chosenCodecVideo = $(this).data('value');
+  $('#selectCodecVideo').text($(this).text()).data('value', chosenCodecVideo);
+  storeData('codecVideo', chosenCodecVideo, null);
+  Navigation.pop();
+}
+
 function saveAudioSync() {
-  setTimeout(function () {
+  setTimeout(function() {
     const chosenAudioSync = $("#audioSyncSwitch").parent().hasClass('is-checked');
     console.log('%c[index.js, saveAudioSync]', 'color: green;', 'Saving audio sync state : ' + chosenAudioSync);
     storeData('audioSync', chosenAudioSync, null);
@@ -1089,8 +1274,6 @@ function saveFramerate() {
   updateDefaultBitrate();
   Navigation.pop();
 }
-
-
 
 // storing data in chrome.storage takes the data as an object, and shoves it into JSON to store
 // unfortunately, objects with function instances (classes) are stripped of their function instances when converted to a raw object
@@ -1106,7 +1289,7 @@ function saveBitrate() {
 function saveRemoteAudio() {
   // MaterialDesignLight uses the mouseup trigger, so we give it some time to change the class name before
   // checking the new state
-  setTimeout(function () {
+  setTimeout(function() {
     var remoteAudioState = $("#remoteAudioEnabledSwitch").parent().hasClass('is-checked');
     console.log('%c[index.js, saveRemoteAudio]', 'color: green;', 'Saving remote audio state : ' + remoteAudioState);
     storeData('remoteAudio', remoteAudioState, null);
@@ -1117,13 +1300,12 @@ function updateDefaultBitrate() {
   var res = $('#selectResolution').data('value');
   var frameRate = $('#selectFramerate').data('value').toString();
 
-  if (res === "1920:1080") {
-    if (frameRate === "30") { // 1080p, 30fps
-      $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else if (frameRate === "60") { // 1080p, 60fps
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else { // 1080p, 120fps
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
+  // These quality presets include video resolution like 480p, 720p, 1080p, 1440p, 2160p (4K) and video frame rate like 30 FPS and 60 FPS
+  if (res === "858:480") {
+    if (frameRate === "30") { // 480p, 30 FPS
+      $('#bitrateSlider')[0].MaterialSlider.change('2');
+    } else { // 480p, 60 FPS
+      $('#bitrateSlider')[0].MaterialSlider.change('4');
     }
   } else if (res === "1280:720") {
     if (frameRate === "30") { // 720, 30fps
@@ -1132,6 +1314,14 @@ function updateDefaultBitrate() {
       $('#bitrateSlider')[0].MaterialSlider.change('10');
     } else { // 720, 120fps
       $('#bitrateSlider')[0].MaterialSlider.change('20');
+    }
+  } else if (res === "1920:1080") {
+    if (frameRate === "30") { // 1080p, 30fps
+      $('#bitrateSlider')[0].MaterialSlider.change('10');
+    } else if (frameRate === "60") { // 1080p, 60fps
+      $('#bitrateSlider')[0].MaterialSlider.change('20');
+    } else { // 1080p, 120fps
+      $('#bitrateSlider')[0].MaterialSlider.change('40');
     }
   } else if (res === "2560:1440") {
     if (frameRate === "30") { // 1440, 30fps
@@ -1172,9 +1362,6 @@ function initSamsungKeys() {
       //'SmartHub',      // F5
       'Source',        // F6
       'ChannelList',   // F7
-      'VolumeMute',    // F8
-      'VolumeDown',    // F9
-      'VolumeUp',      // F10
       'ChannelDown',   // F11
       'ChannelUp',     // F12
     ],
@@ -1195,10 +1382,21 @@ function loadUserData() {
 }
 
 function loadUserDataCb() {
+  console.log('load stored VideoCodec prefs');
+  getData('codecVideo', function(previousValue) {
+    if (previousValue.codecVideo != null) {
+      $('.codecVideoMenu li').each(function() {
+        if ($(this).data('value') === previousValue.codecVideo) {
+          $('#selectCodecVideo').text($(this).text()).data('value', previousValue.codecVideo);
+        }
+      });
+    }
+  });
+  
   console.log('load stored resolution prefs');
-  getData('resolution', function (previousValue) {
+  getData('resolution', function(previousValue) {
     if (previousValue.resolution != null) {
-      $('.resolutionMenu li').each(function () {
+      $('.resolutionMenu li').each(function() {
         if ($(this).data('value') === previousValue.resolution) {
           $('#selectResolution').text($(this).text()).data('value', previousValue.resolution);
         }
@@ -1207,7 +1405,7 @@ function loadUserDataCb() {
   });
 
   console.log('Load stored remote audio prefs');
-  getData('remoteAudio', function (previousValue) {
+  getData('remoteAudio', function(previousValue) {
     if (previousValue.remoteAudio == null) {
       document.querySelector('#externalAudioBtn').MaterialIconToggle.uncheck();
     } else if (previousValue.remoteAudio == false) {
@@ -1218,9 +1416,9 @@ function loadUserDataCb() {
   });
 
   console.log('load stored framerate prefs');
-  getData('frameRate', function (previousValue) {
+  getData('frameRate', function(previousValue) {
     if (previousValue.frameRate != null) {
-      $('.framerateMenu li').each(function () {
+      $('.framerateMenu li').each(function() {
         if ($(this).data('value') === previousValue.frameRate) {
           $('#selectFramerate').text($(this).text()).data('value', previousValue.frameRate);
         }
@@ -1229,7 +1427,7 @@ function loadUserDataCb() {
   });
 
   console.log('load stored optimization prefs');
-  getData('optimize', function (previousValue) {
+  getData('optimize', function(previousValue) {
     if (previousValue.optimize == null) {
       document.querySelector('#optimizeGamesBtn').MaterialIconToggle.check();
     } else if (previousValue.optimize == false) {
@@ -1240,7 +1438,7 @@ function loadUserDataCb() {
   });
 
   console.log('load stored framePacing prefs');
-  getData('framePacing', function (previousValue) {
+  getData('framePacing', function(previousValue) {
     if (previousValue.framePacing == null) {
       document.querySelector('#framePacingBtn').MaterialIconToggle.check();
     } else if (previousValue.framePacing == false) {
@@ -1250,8 +1448,19 @@ function loadUserDataCb() {
     }
   });
 
+  console.log('load stored HDR prefs');
+  getData('HDR', function(previousValue) {
+    if (previousValue.HDR == null) {
+      document.querySelector('#hdrBtn').MaterialIconToggle.check();
+    } else if (previousValue.HDR == false) {
+      document.querySelector('#hdrBtn').MaterialIconToggle.uncheck();
+    } else {
+      document.querySelector('#hdrBtn').MaterialIconToggle.check();
+    }
+  });
+
   console.log('load stored audioSync prefs');
-  getData('audioSync', function (previousValue) {
+  getData('audioSync', function(previousValue) {
     if (previousValue.audioSync == null) {
       document.querySelector('#audioSyncBtn').MaterialIconToggle.check();
     } else if (previousValue.audioSync == false) {
@@ -1262,8 +1471,8 @@ function loadUserDataCb() {
   });
 
   console.log('load stored bitrate prefs');
-  getData('bitrate', function (previousValue) {
-    $('#bitrateSlider')[0].MaterialSlider.change(previousValue.bitrate != null ? previousValue.bitrate : '10');
+  getData('bitrate', function(previousValue) {
+    $('#bitrateSlider')[0].MaterialSlider.change(previousValue.bitrate != null ? previousValue.bitrate : '20');
     updateBitrateField();
   });
 }
@@ -1278,12 +1487,12 @@ function loadHTTPCerts() {
 
 function loadHTTPCertsCb() {
   console.log('load the HTTP cert and unique ID if we have one.');
-  getData('cert', function (savedCert) {
+  getData('cert', function(savedCert) {
     if (savedCert.cert != null) { // we have a saved cert
       pairingCert = savedCert.cert;
     }
 
-    getData('uniqueid', function (savedUniqueid) {
+    getData('uniqueid', function(savedUniqueid) {
       // See comment on myUniqueid
       /*if (savedUniqueid.uniqueid != null) { // we have a saved uniqueid
         myUniqueid = savedUniqueid.uniqueid;
@@ -1294,29 +1503,29 @@ function loadHTTPCertsCb() {
 
       if (!pairingCert) { // we couldn't load a cert. Make one.
         console.warn('%c[index.js, moduleDidLoad]', 'color: green;', 'Failed to load local cert. Generating new one');
-        sendMessage('makeCert', []).then(function (cert) {
+        sendMessage('makeCert', []).then(function(cert) {
           storeData('cert', cert, null);
           pairingCert = cert;
           console.info('%c[index.js, moduleDidLoad]', 'color: green;', 'Generated new cert:', cert);
-        }, function (failedCert) {
+        }, function(failedCert) {
           console.error('%c[index.js, moduleDidLoad]', 'color: green;', 'Failed to generate new cert! Returned error was: \n', failedCert);
-        }).then(function (ret) {
-          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function (ret) {
+        }).then(function(ret) {
+          sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
             restoreUiAfterNaClLoad();
-          }, function (failedInit) {
+          }, function(failedInit) {
             console.error('%c[index.js, moduleDidLoad]', 'color: green;', 'Failed httpInit! Returned error was: ', failedInit);
           });
         });
       } else {
-        sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function (ret) {
+        sendMessage('httpInit', [pairingCert.cert, pairingCert.privateKey, myUniqueid]).then(function(ret) {
           restoreUiAfterNaClLoad();
-        }, function (failedInit) {
+        }, function(failedInit) {
           console.error('%c[index.js, moduleDidLoad]', 'color: green;', 'Failed httpInit! Returned error was: ', failedInit);
         });
       }
 
       // load previously connected hosts, which have been killed into an object, and revive them back into a class
-      getData('hosts', function (previousValue) {
+      getData('hosts', function(previousValue) {
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         for (var hostUID in hosts) { // programmatically add each new host.
           var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress);
@@ -1341,20 +1550,40 @@ function onWindowLoad() {
   initSamsungKeys();
   loadWindowState();
   loadUserData();
+  loadProductInfo();
 }
 
 window.onload = onWindowLoad;
 
 // Required on TizenTV, to get gamepad events.
-window.addEventListener('gamepadconnected', function (event) {
-  console.log('%c[index.js, gamepadconnected] gamepad connected: ' +
-    JSON.stringify(event.gamepad),
-    event.gamepad);
-});
+window.addEventListener('gamepadconnected', function(event) {
+	  const connectedGamepad = event.gamepad;
+	  console.log('%c[index.js, gamepadconnected] gamepad connected: ', 'color: green;', connectedGamepad);
 
+    if (connectedGamepad.vibrationActuator) { // Check if the gamepad supports rumble, and if so rumble once to notify users.
+        console.log('Gamepad supports vibration.');
+
+        // Specify vibration parameters
+        const startDelay = 0;
+        const duration = 200; // in milliseconds
+        const weakMagnitude = 0.5;
+        const strongMagnitude = 0.5;
+
+        // Play the dual-rumble effect
+        connectedGamepad.vibrationActuator.playEffect('dual-rumble', {
+            startDelay: startDelay,
+            duration: duration,
+            weakMagnitude: weakMagnitude,
+            strongMagnitude: strongMagnitude,
+        });
+
+	  } else {
+	    console.log('Gamepad does not support vibration.');
+	  }
+});
 // Required on TizenTV, to get gamepad events.
-window.addEventListener('gamepaddisconnected', function (event) {
+window.addEventListener('gamepaddisconnected', function(event) {
   console.log('%c[index.js, gamepaddisconnected] gamepad disconnected: ' +
-    JSON.stringify(event.gamepad),
-    event.gamepad);
+              JSON.stringify(event.gamepad),
+              event.gamepad);
 });

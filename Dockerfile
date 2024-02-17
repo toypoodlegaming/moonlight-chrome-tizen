@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as base
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -39,7 +39,7 @@ RUN tizen security-profiles add \
 	-p 1234
 
 # Workaround to package applications without gnome-keyring
-# These steps must be repeated each time prior to packaging an application. 
+# These steps must be repeated each time prior to packaging an application.
 # See <https://developer.tizen.org/forums/sdk-ide/pwd-fle-format-profile.xml-certificates>
 RUN sed -i 's|/home/moonlight/tizen-studio-data/keystore/author/Moonlight.pwd||' /home/moonlight/tizen-studio-data/profile/profiles.xml
 RUN sed -i 's|/home/moonlight/tizen-studio-data/tools/certificate-generator/certificates/distributor/tizen-distributor-signer.pwd|tizenpkcs12passfordsigner|' /home/moonlight/tizen-studio-data/profile/profiles.xml
@@ -50,10 +50,11 @@ RUN wget -nv -O emscripten-1.39.4.7-linux64.zip 'https://developer.samsung.com/s
 RUN unzip emscripten-1.39.4.7-linux64.zip
 WORKDIR emscripten-release-bundle/emsdk
 RUN ./emsdk activate latest-fastcomp
-WORKDIR ../.. 
+WORKDIR ../..
 
 # Build moonlight
-COPY . ./moonlight-chrome-tizen
+#RUN git clone https://github.com/OneLiberty/moonlight-chrome-tizen
+COPY --chown=moonlight . ./moonlight-chrome-tizen
 
 RUN cmake \
 	-DCMAKE_TOOLCHAIN_FILE=/home/moonlight/emscripten-release-bundle/emsdk/fastcomp/emscripten/cmake/Modules/Platform/Emscripten.cmake \
@@ -65,7 +66,7 @@ RUN cmake --install build --prefix build
 
 RUN cp moonlight-chrome-tizen/icons/icon.png build/widget/
 
-# Package and sign application 
+# Package and sign application
 # Effectively runs `tizen package -t wgt -- build/widget`,
 # but uses an expect cmdfile to automate the password prompt.
 RUN echo \
@@ -78,20 +79,32 @@ RUN echo \
 	'expect eof\n' \
 | expect
 
-# Optional; remove unneed files
-RUN mv build/widget/MoonlightWasm.wgt .
+RUN mv build/widget/Moonlight.wgt .
+
+# remove unneed files
+RUN rm -rf \
+	build \
+	emscripten-1.39.4.7-linux64.zip \
+	emscripten-release-bundle \
+	moonlight-chrome-tizen \
+	tizen-package-expect.sh \
+	web-cli_Tizen_Studio_5.0_ubuntu-64.bin \
+	.emscripten \
+	.emscripten_cache \
+	.emscripten_cache.lock \
+	.emscripten_ports \
+	.emscripten_sanity \
+	.package-manager \
+	.wget-hsts
+
+# Use a multistage build to reclaim space from deleted files
+FROM ubuntu:22.04
+COPY --from=base / /
+USER moonlight
+WORKDIR /home/moonlight
+
+# Add Tizen Studio to path
+ENV PATH=/home/moonlight/tizen-studio/tools/ide/bin:/home/moonlight/tizen-studio/tools:${PATH}
+
 # RUN sdb connect 192.168.0.228
 # RUN tizen install -n MoonlightWasm.wgt -t QN55Q65BAGC
-#RUN rm -rf \
-#	build \
-#	emscripten-1.39.4.7-linux64.zip \
-#	emscripten-release-bundle \
-#	moonlight-chrome-tizen \
-#	tizen-package-expect.sh \
-#	web-cli_Tizen_Studio_5.0_ubuntu-64.bin \
-#	.emscripten \
-#	.emscripten_cache \
-#	.emscripten_cache.lock \ 
-#	.emscripten_ports \
-#	.emscripten_sanity \
-#	.wget-hsts
