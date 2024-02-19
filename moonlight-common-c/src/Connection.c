@@ -22,7 +22,6 @@ bool HighQualitySurroundSupported;
 bool HighQualitySurroundEnabled;
 OPUS_MULTISTREAM_CONFIGURATION NormalQualityOpusConfig;
 OPUS_MULTISTREAM_CONFIGURATION HighQualityOpusConfig;
-int OriginalVideoBitrate;
 int AudioPacketDuration;
 bool AudioEncryptionEnabled;
 bool ReferenceFrameInvalidationSupported;
@@ -32,7 +31,11 @@ uint16_t AudioPortNumber;
 uint16_t VideoPortNumber;
 SS_PING AudioPingPayload;
 SS_PING VideoPingPayload;
+uint32_t ControlConnectData;
 uint32_t SunshineFeatureFlags;
+uint32_t EncryptionFeaturesSupported;
+uint32_t EncryptionFeaturesRequested;
+uint32_t EncryptionFeaturesEnabled;
 
 // Connection stages
 static const char* stageNames[STAGE_MAX] = {
@@ -258,7 +261,6 @@ int LiStartConnection(PSERVER_INFORMATION serverInfo, PSTREAM_CONFIGURATION stre
     memset(&LocalAddr, 0, sizeof(LocalAddr));
     NegotiatedVideoFormat = 0;
     memcpy(&StreamConfig, streamConfig, sizeof(StreamConfig));
-    OriginalVideoBitrate = streamConfig->bitrate;
     RemoteAddrString = strdup(serverInfo->address);
 
     // The values in RTSP SETUP will be used to populate these.
@@ -520,4 +522,10 @@ Cleanup:
         LiStopConnection();
     }
     return err;
+}
+
+const char* LiGetLaunchUrlQueryParameters() {
+    // v0 = Video encryption and control stream encryption v2
+    // v1 = RTSP encryption
+    return "&corever=1";
 }
