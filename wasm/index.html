@@ -60,7 +60,7 @@
             </div>
 
             <div class="bitrateMenu mdl-menu mdl-js-menu mdl-js-ripple-effect" for="bandwidthMenu">
-              <input id="bitrateSlider" class="mdl-slider mdl-js-slider" type="range" min="0" max="150" step="0.5" value="20">
+              <input id="bitrateSlider" class="mdl-slider mdl-js-slider" type="range" min="0" max="300" step="1" value="20">
             </div>
 
             <div id="bandwidthTooltip" class="mdl-tooltip" for="bandwidthMenu">Bandwidth</div>
@@ -68,13 +68,13 @@
 
           <div class="nav-menu-parent">
             <div id="codecVideoMenu">
-              <button id="selectCodecVideo" data-value=0x0001 class="mdl-button mdl-js-button">H264</button>
+              <button id="selectCodecVideo" data-value="264" class="mdl-button mdl-js-button">H264</button>
             </div>
 
             <ul class="codecVideoMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectCodecVideo">
-              <li class="mdl-menu__item" data-value=0x0001>H264</li>
-              <li class="mdl-menu__item" data-value=0x0100>HEVC</li>
-              <li class="mdl-menu__item" data-value=0x0200>HEVC Main10</li>
+              <li class="mdl-menu__item" data-value="264">H264</li>
+              <li class="mdl-menu__item" data-value="265">HEVC</li>
+              <li class="mdl-menu__item" data-value="1">AV1</li>
             </ul>
             <div id="codecVideoMenuTooltip" class="mdl-tooltip" for="codecVideoMenu">Video Codec</div>
           </div>

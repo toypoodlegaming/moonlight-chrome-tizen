@@ -192,7 +192,7 @@ public:
   bool m_HdrEnabled;
   STREAM_CONFIGURATION m_StreamConfig;
   bool m_Running;
-  int m_supportedVideoFormats;
+  int m_serverCodecModeSupport;
 
   pthread_t m_ConnectionThread;
   pthread_t m_InputThread;
