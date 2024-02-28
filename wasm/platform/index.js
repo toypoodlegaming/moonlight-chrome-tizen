@@ -34,6 +34,7 @@ function attachListeners() {
   $("#remoteAudioEnabledSwitch").on('click', saveRemoteAudio);
   $('#optimizeGamesSwitch').on('click', saveOptimize);
   $('#framePacingSwitch').on('click', saveFramePacing);
+  $('.audioConfigMenu li').on('click', saveAudioConfig);
   $('#audioSyncSwitch').on('click', saveAudioSync);
   $('#hdrSwitch').on('click', saveHdr);
   $('.codecVideoMenu li').on('click', saveCodecVideo);													  
@@ -49,7 +50,8 @@ function attachListeners() {
         Navigation.push(view);
     });
   }
-  registerMenu('selectCodecVideo', Views.SelectCodecVideoMenu);															   
+  registerMenu('selectAudioConfig', Views.SelectAudioConfigMenu);
+  registerMenu('selectCodecVideo', Views.SelectCodecVideoMenu);
   registerMenu('selectResolution', Views.SelectResolutionMenu);
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('bandwidthMenu', Views.SelectBitrateMenu);
@@ -852,6 +854,7 @@ function startGame(host, appID) {
       const framePacingEnabled = $('#framePacingSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const audioSyncEnabled = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const hdrEnabled = $('#hdrSwitch').parent().hasClass('is-checked') ? 1 : 0;
+      var audioConfig = $('#selectAudioConfig').data('value').toString();
       console.log('%c[index.js, startGame]', 'color:green;',
                   'startRequest:' + host.address +
                   ":" + streamWidth +
@@ -862,7 +865,8 @@ function startGame(host, appID) {
                   ":" + framePacingEnabled,
                   ":" + audioSyncEnabled,
                   ":" + hdrEnabled,
-                  ":" + codecVideo);
+                  ":" + codecVideo,
+                  ":" + audioConfig);
 
       var rikey = generateRemoteInputKey();
       var rikeyid = generateRemoteInputKeyId();
@@ -898,7 +902,8 @@ function startGame(host, appID) {
 			framePacingEnabled,
             audioSyncEnabled,
             hdrEnabled,
-            codecVideo		 
+            codecVideo,
+            audioConfig		 
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color:green;', 'Failed to resume the app! Returned error was' + failedResumeApp);
@@ -940,7 +945,8 @@ function startGame(host, appID) {
           framePacingEnabled,
           audioSyncEnabled,
           hdrEnabled,
-          codecVideo			  
+          codecVideo,
+          audioConfig
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, launchApp]', 'color: green;', 'Failed to launch app width id: ' + appID + '\nReturned error was: ' + failedLaunchApp);
@@ -1259,6 +1265,13 @@ function saveCodecVideo() {
   Navigation.pop();
 }
 
+function saveAudioConfig() {
+  var chosenAudioConfig = $(this).data('value');
+  $('#selectAudioConfig').text($(this).text()).data('value', chosenAudioConfig);
+  storeData('audioConfig', chosenAudioConfig, null);
+  Navigation.pop();
+}
+
 function saveAudioSync() {
   setTimeout(function() {
     const chosenAudioSync = $("#audioSyncSwitch").parent().hasClass('is-checked');
@@ -1456,6 +1469,17 @@ function loadUserDataCb() {
       document.querySelector('#hdrBtn').MaterialIconToggle.uncheck();
     } else {
       document.querySelector('#hdrBtn').MaterialIconToggle.check();
+    }
+  });
+
+  console.log('load stored audioConfig prefs');
+  getData('audioConfig', function(previousValue) {
+    if (previousValue.audioConfig != null) {
+      $('.audioConfigMenu li').each(function() {
+        if ($(this).data('value') === previousValue.audioConfig) {
+          $('#selectAudioConfig').text($(this).text()).data('value', previousValue.audioConfig);
+        }
+      });
     }
   });
 

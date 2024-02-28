@@ -144,12 +144,28 @@ int height, int redrawRate, void* context, int drFlags) {
   ClLogMessage("closed done\n");
 
   {
+    samsung::wasm::ChannelLayout selectedLayout;
+    switch (CHANNEL_COUNT_FROM_AUDIO_CONFIGURATION(g_Instance->m_AudioConfig))
+    {
+    case 6:
+      selectedLayout = samsung::wasm::ChannelLayout::k5_1Back; 
+      break;
+    case 8:
+      selectedLayout = samsung::wasm::ChannelLayout::k7_1; 
+      break;
+    default:
+      selectedLayout = samsung::wasm::ChannelLayout::kStereo;
+      break;
+    }
+
     auto add_track_result = g_Instance->m_Source.AddTrack(
       samsung::wasm::ElementaryAudioTrackConfig {
         "audio/webm; codecs=\"pcm\"",  // mimeType
+        // "audio/mp4; codecs=\"pcm\"",  // mimeType, works
         {},  // extradata (empty?)
-        samsung::wasm::SampleFormat::kS16,
-        samsung::wasm::ChannelLayout::kStereo,
+        samsung::wasm::DecodingMode::kHardware,
+        samsung::wasm::SampleFormat::kS16, //test kS16 is ok, kPlanarS16 does not work at all
+        selectedLayout,
         kSampleRate
       });
     if (add_track_result) {
@@ -181,6 +197,7 @@ int height, int redrawRate, void* context, int drFlags) {
       samsung::wasm::ElementaryVideoTrackConfig{
         mimetype,
         {},                                   // extradata (empty?)
+        samsung::wasm::DecodingMode::kHardware,
         static_cast<uint32_t>(width),
         static_cast<uint32_t>(height),
         static_cast<uint32_t>(redrawRate),  // framerateNum

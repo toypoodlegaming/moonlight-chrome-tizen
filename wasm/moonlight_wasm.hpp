@@ -61,7 +61,7 @@ public:
   MessageResult StartStream(std::string host, std::string width,
   std::string height, std::string fps, std::string bitrate, std::string rikey,
   std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-  bool audioSync, bool hdrEnabled, std::string codecVideo);
+  bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig);
   MessageResult StopStream();
 
   void STUN(int callbackId);
@@ -188,6 +188,7 @@ public:
   std::string m_GfeVersion;
   std::string m_RtspUrl;
   bool m_FramePacingEnabled;
+  int m_AudioConfig;
   bool m_AudioSyncEnabled;
   bool m_HdrEnabled;
   STREAM_CONFIGURATION m_StreamConfig;
@@ -243,7 +244,8 @@ void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryRe
 
 MessageResult startStream(std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid, std::string appversion,
-std::string gfeversion, std::string rtspurl, bool framePacing, bool audioSync, bool hdrEnabled, std::string codecVideo);
+std::string gfeversion, std::string rtspurl, bool framePacing, bool audioSync, bool hdrEnabled, 
+std::string codecVideo, std::string audioConfig);
 
 MessageResult stopStream();
 

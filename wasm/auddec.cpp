@@ -8,13 +8,6 @@ using std::chrono_literals::operator""s;
 using std::chrono_literals::operator""ms;
 using TimeStamp = samsung::wasm::Seconds;
 
-#define MAX_CHANNEL_COUNT 2
-#ifdef SLOW_AUDIO_DECODER
-#define FRAME_SIZE 960
-#else
-#define FRAME_SIZE 240
-#endif
-
 static constexpr TimeStamp kAudioBufferMargin = 100ms;
 
 static std::vector<opus_int16> s_DecodeBuffer;
@@ -22,6 +15,9 @@ static std::vector<opus_int16> s_DecodeBuffer;
 static TimeStamp s_frameDuration;
 static TimeStamp s_pktPts;
 static TimeStamp s_estimatedAudioEnd;
+
+static size_t s_samplesPerFrame;
+static size_t s_channelCount;
 
 static std::chrono::time_point<std::chrono::steady_clock> s_firstAppend;
 static bool s_hasFirstFrame = false;
@@ -40,19 +36,21 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track,
                                   int sampleLength) {
   int decodeLen = opus_multistream_decode(
       decoder,
-      sampleData           , sampleLength,
-      s_DecodeBuffer.data(), FRAME_SIZE,
+      sampleData, sampleLength,
+      s_DecodeBuffer.data(), 
+      s_samplesPerFrame,
       0);
 
-  if (decodeLen <= 0)
+  if (decodeLen <= 0) {
     s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
+  }
 
   samsung::wasm::ElementaryMediaPacket pkt{
      s_pktPts,
      s_pktPts,
      s_frameDuration,
      true,
-     s_DecodeBuffer.size() * sizeof(opus_int16),
+     decodeLen * sizeof(opus_int16) * s_channelCount,
      s_DecodeBuffer.data(),
      0,
      0,
@@ -74,10 +72,12 @@ int MoonlightInstance::AudDecInit(int audioConfiguration,
   int rc;
   ClLogMessage("MoonlightInstance::AudDecSetup\n");
   s_pktPts = 0s;
-
-  s_DecodeBuffer.resize(FRAME_SIZE * MAX_CHANNEL_COUNT);
-  s_frameDuration = FrameDuration(opusConfig->samplesPerFrame,
-                                  opusConfig->sampleRate);
+  s_channelCount = opusConfig->channelCount; // 2 6 8
+  s_samplesPerFrame = opusConfig->samplesPerFrame; // 240 = 48 * 5
+  size_t pcmBufferSize = sizeof(opus_int16) * s_samplesPerFrame * s_channelCount ; // 960 2880 3840
+  s_DecodeBuffer.resize(pcmBufferSize);
+  s_frameDuration = FrameDuration(opusConfig->samplesPerFrame, // 240
+                                  opusConfig->sampleRate); // 48000
 
   g_Instance->m_OpusDecoder =
       opus_multistream_decoder_create(opusConfig->sampleRate,
@@ -130,9 +130,5 @@ AUDIO_RENDERER_CALLBACKS MoonlightInstance::s_ArCallbacks = {
     .init = MoonlightInstance::AudDecInit,
     .cleanup = MoonlightInstance::AudDecCleanup,
     .decodeAndPlaySample = MoonlightInstance::AudDecDecodeAndPlaySample,
-#ifdef SLOW_AUDIO_DECODER
-    .capabilities = CAPABILITY_SLOW_OPUS_DECODER
-#else
     .capabilities = CAPABILITY_DIRECT_SUBMIT
-#endif
 };

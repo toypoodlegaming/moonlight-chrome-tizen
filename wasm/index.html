@@ -118,6 +118,19 @@
             </label>
             <div id="hdrTooltip" class="mdl-tooltip" for="hdrBtn">Enable HDR</div>
           </div>
+
+          <div class="nav-menu-parent">
+            <div id="audioConfigMenu">
+              <button id="selectAudioConfig" data-value="S" class="mdl-button mdl-js-button">Stereo</button>
+            </div>
+
+            <ul class="audioConfigMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectAudioConfig">
+              <li class="mdl-menu__item" data-value="S">Stereo</li>
+              <li class="mdl-menu__item" data-value="51">5.1 Surround</li>
+              <li class="mdl-menu__item" data-value="71">7.1 Surround</li>
+            </ul>
+            <div id="audioConfigMenuTooltip" class="mdl-tooltip" for="audioConfigMenu">Audio Config</div>
+          </div>
 		  
           <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="quitCurrentApp" aria-label="Quit current app">
             <i class="material-icons">remove_circle_outline</i>Quit Current App
