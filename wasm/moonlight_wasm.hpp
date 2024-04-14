@@ -61,7 +61,7 @@ public:
   MessageResult StartStream(std::string host, std::string width,
   std::string height, std::string fps, std::string bitrate, std::string rikey,
   std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-  bool audioSync, bool hdrEnabled, std::string codecVideo);
+  bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode);
   MessageResult StopStream();
 
   void STUN(int callbackId);
@@ -243,7 +243,8 @@ void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryRe
 
 MessageResult startStream(std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid, std::string appversion,
-std::string gfeversion, std::string rtspurl, bool framePacing, bool audioSync, bool hdrEnabled, std::string codecVideo);
+std::string gfeversion, std::string rtspurl, bool framePacing, bool audioSync, bool hdrEnabled, std::string codecVideo,
+std::string serverCodecSupportMode);
 
 MessageResult stopStream();
 

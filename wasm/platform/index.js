@@ -843,7 +843,7 @@ function startGame(host, appID) {
       }
 
       var frameRate = $('#selectFramerate').data('value').toString();
-	  var codecVideo = $('#selectCodecVideo').data('value').toString();
+      var codecVideo = $('#selectCodecVideo').data('value').toString();
       var optimize = $("#optimizeGamesSwitch").parent().hasClass('is-checked') ? 1 : 0;
       var streamWidth = $('#selectResolution').data('value').split(':')[0];
       var streamHeight = $('#selectResolution').data('value').split(':')[1];
@@ -894,11 +894,12 @@ function startGame(host, appID) {
             rikeyid.toString(),
             host.appVersion,
             "",
-			$root.find('sessionUrl0').text().trim(),
-			framePacingEnabled,
+            $root.find('sessionUrl0').text().trim(),
+            framePacingEnabled,
             audioSyncEnabled,
             hdrEnabled,
-            codecVideo		 
+            codecVideo,
+            host.serverCodecSupportMode		 
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color:green;', 'Failed to resume the app! Returned error was' + failedResumeApp);
@@ -936,11 +937,12 @@ function startGame(host, appID) {
           rikeyid.toString(),
           host.appVersion,
           "",
-		  $root.find('sessionUrl0').text().trim(),
+		      $root.find('sessionUrl0').text().trim(),
           framePacingEnabled,
           audioSyncEnabled,
           hdrEnabled,
-          codecVideo			  
+          codecVideo,
+          host.serverCodecSupportMode			  
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, launchApp]', 'color: green;', 'Failed to launch app width id: ' + appID + '\nReturned error was: ' + failedLaunchApp);

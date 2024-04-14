@@ -2,9 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.0
+
+### Added
+- Codec selection (You can choose between H264, H265, H265 Main10, AV1 and AV1 Main10)
+- TV model info now displays in the bottom left corner of the app.
+
+### Changed
+- Updated moonlight-common-c library
+- Updated Opus to v1.4
+- Improvements to Add Host menu. 
+
+credit goes to @HnwT for the AV1 support and @henryfa2 for the codec selections
+
 ## v1.1.1
 
-### Added.
+### Added
 - HDR toggle in the app. If your TV is not compatible with HDR this might result in a crash of the app or blackscreen
   Also note that your computer need to have HDR enabled in order to stream HDR.
 

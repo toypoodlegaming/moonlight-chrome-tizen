@@ -177,7 +177,7 @@ MessageResult MoonlightInstance::StartStream(
 std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid,
 std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
   PostToJs("Setting stream width to: " + width);
   PostToJs("Setting stream height to: " + height);
   PostToJs("Setting stream fps to: " + fps);
@@ -192,6 +192,7 @@ bool audioSync, bool hdrEnabled, std::string codecVideo) {
   PostToJs("Setting audio syncing to: " + std::to_string(audioSync));
   PostToJs("Setting HDR to:" + std::to_string(hdrEnabled));
   PostToJs("Setting videoCodec: " + codecVideo);
+  PostToJs("Setting serverCodecSupportMode: " + serverCodecSupportMode);
 
   // Populate the stream configuration
   LiInitializeStreamConfiguration(&m_StreamConfig);
@@ -219,7 +220,7 @@ bool audioSync, bool hdrEnabled, std::string codecVideo) {
   m_FramePacingEnabled = framePacing;
   m_AudioSyncEnabled = audioSync;
   m_HdrEnabled = hdrEnabled;
-  m_supportedVideoFormats = stoi(codecVideo,0,16);
+  m_supportedVideoFormats = stoi(serverCodecSupportMode);
   
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
@@ -318,10 +319,10 @@ int main(int argc, char** argv) {
 MessageResult startStream(std::string host, std::string width,
 std::string height, std::string fps, std::string bitrate, std::string rikey,
 std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
   printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(), width.c_str(), height.c_str());
   return g_Instance->StartStream(host, width, height, fps, bitrate, rikey,
-  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo);
+  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, serverCodecSupportMode);
 }
 
 MessageResult stopStream() { return g_Instance->StopStream(); }
