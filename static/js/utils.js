@@ -416,51 +416,25 @@ NvHTTP.prototype = {
     return this.getAppListWithCacheFlush();
   },
 
-  // returns the box art of the given appID.
-  // three layers of response time are possible: memory cached (in javascript), storage cached (in chrome.storage.local), and streamed (host sends binary over the network)
-  getBoxArt: function(appId) {
-    if (runningOnChrome()) {
-      // This may be bad practice to push/pull this much data through local storage?
-      return new Promise(function(resolve, reject) {
-        chrome.storage.local.get('boxart-' + appId, function(storageData) {
-          // if we already have it, load it.
-          if (storageData !== undefined && Object.keys(storageData).length !== 0 && storageData['boxart-' + appId].constructor !== Object) {
-            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art for app: ', appId);
-            resolve(storageData['boxart-' + appId]);
-            return;
-          }
+  // https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/filesystem-api.html
+  getBoxArt: function (appId) {
+    return new Promise(function (resolve, reject) {
+      var boxArtFileName = 'boxart-' + appId + '.png';
+      var boxArtDir = 'wgt-private'; // Tizen private storage directory, it's r/w and is deleted when the app is uninstalled. 
 
-          // otherwise, put it in our cache, then return it
-          sendMessage('openUrl', [
-            this._baseUrlHttps +
-            '/appasset?' + this._buildUidStr() +
-            '&appid=' + appId +
-            '&AssetType=2&AssetIdx=0',
-            this.ppkstr,
-            true
-          ]).then(function(boxArtBuffer) {
-            var reader = new FileReader();
-            reader.onloadend = function() {
-              var obj = {};
-              obj['boxart-' + appId] = this.result;
-              chrome.storage.local.set(obj, function(onSuccess) {});
-              console.log('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
-              resolve(this.result);
-            }
-            reader.readAsDataURL(new Blob([boxArtBuffer], {
-              type: "image/png"
-            }));
-          }.bind(this), function(error) {
-            console.error('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
-            reject(error);
-            return;
-          }.bind(this));
-        }.bind(this));
-      }.bind(this));
+      try {
+        var fileHandleRead = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "r");
+        var fileContentInBlob = fileHandleRead.readBlob();
+        fileHandleRead.close();
+        console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art for app: ', appId);
 
-    } else { // shouldn't run because we always have chrome.storage, but I'm not going to antagonize other browsers
-      console.warn('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'chrome.storage not detected! Box art will not be saved!');
-      return new Promise((resolve, reject) => {
+        var reader = new FileReader();
+        reader.onloadend = function () {
+          var dataUrl = reader.result;
+          resolve(dataUrl);
+        };
+        reader.readAsDataURL(fileContentInBlob);
+      } catch (e) {
         sendMessage('openUrl', [
           this._baseUrlHttps +
           '/appasset?' + this._buildUidStr() +
@@ -468,26 +442,32 @@ NvHTTP.prototype = {
           '&AssetType=2&AssetIdx=0',
           this.ppkstr,
           true
-        ]).then((boxArtBuffer) => {
+        ]).then(function (boxArtBuffer) {
           var reader = new FileReader();
-          reader.onloadend = function() {
-            var obj = {};
-            obj['boxart-' + appId] = this.result;
-            console.log('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
-            resolve(this.result);
-          }
-          reader.readAsDataURL(new Blob([boxArtBuffer], {
-            type: "image/png"
-          }));
-        }, (error) => {
-          console.error('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
-          reject(error);
-          return;
-        });
-      });
-    }
-  },
+          reader.onloadend = function () {
+            var dataUrl = reader.result;
 
+            try {
+              var fileHandleWrite = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "w");
+              var blob = new Blob([boxArtBuffer], { type: "image/png" });
+              fileHandleWrite.writeBlob(blob);
+              fileHandleWrite.close();
+              console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
+              resolve(dataUrl);
+            } catch (writeError) {
+              console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Failed to write box art to file!', writeError);
+              reject(writeError);
+            }
+          };
+          reader.readAsDataURL(new Blob([boxArtBuffer], { type: "image/png" }));
+        }.bind(this), function (error) {
+          console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
+          reject(error);
+        }.bind(this));
+      }
+    }.bind(this));
+  },
+    
   launchApp: function(appId, mode, sops, rikey, rikeyid, localAudio, surroundAudioInfo, gamepadMask) {
     return sendMessage('openUrl', [
       this._baseUrlHttps +
