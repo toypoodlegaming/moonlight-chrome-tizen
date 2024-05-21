@@ -51,5 +51,8 @@ function remoteControllerHandler(e) {
         case tvKey.KEY_RED:
             Module.stopStream();
             break;
-          }
+        case tvKey.KEY_GREEN:
+            Navigation.startBtn();
+            break;
+    }
 }
