@@ -54,13 +54,6 @@ function attachListeners() {
   registerMenu('selectFramerate', Views.SelectFramerateMenu);
   registerMenu('bandwidthMenu', Views.SelectBitrateMenu);
 
-  document.addEventListener('fullscreenchange', function (e) {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      console.log('%c[index.js]', 'color: green;', 'Fullscreen requested');
-    }
-  });
-
   Controller.startWatching();
   window.addEventListener('gamepadbuttonpressed', (e) => {
     const pressed = e.detail.pressed;
@@ -340,6 +333,7 @@ function addHost() {
   // try to pair if they continue
   $('#continueAddHost').off('click');
   $('#continueAddHost').on('click', function() {
+  $(this).prop('disabled', true); // disable the button so users don't send multiple requests
 	var inputHost;
 	if ($('#manualInputToggle').prop('checked')) {
 	      // Manual input is selected
@@ -377,9 +371,11 @@ function addHost() {
           saveHosts();
         });
       }
+      $('#continueAddHost').prop('disabled', false); // re-enable the button on success
     }.bind(this),
     function(failure) {
       snackbarLog('Failed to connect to ' + _nvhttpHost.hostname + '! Ensure Sunshine is running on your host PC or GameStream is enabled in GeForce Experience SHIELD settings.');
+      $('#continueAddHost').prop('disabled', false); // re-enable the button on failure
     }.bind(this));
   });
 }
@@ -463,88 +459,28 @@ function removeClicked(host) {
 
 window.removeClicked = removeClicked;
 
-// Function to create and show the Restart Moonlight dialog
+// Function to show the Restart Moonlight dialog
 function showRestartMoonlightDialog() {
-	// Find the existing dialog element
   var restartMoonlightDialog = document.querySelector('#restartMoonlightDialog');
-  
-    if (!restartMoonlightDialog) {
-    // If the dialog element doesn't exist, create it
-    var restartMoonlightDialog = document.createElement('dialog');
-    restartMoonlightDialog.id = 'restartMoonlightDialog';
-    restartMoonlightDialog.classList.add('mdl-dialog');
-
-    // Create the dialog content
-    restartMoonlightDialog.innerHTML = `
-      <h3 class="mdl-dialog__title">Restart Moonlight</h3>
-      <div class="mdl-dialog__content">
-      <p id="restartMoonlightDialogText">
-        After changing video codec, you should restart the application
-      </p>
-      </div>
-      <div class="mdl-dialog__actions">
-      <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="pressOK">OK</button>
-      </div>
-    `;
-
-    // Append the dialog to the DOM
-    document.body.appendChild(restartMoonlightDialog);
-
-    // Initialize the dialog
-    componentHandler.upgradeElements(restartMoonlightDialog);
-  }
 
   // Show the dialog and push the view
   restartMoonlightDialog.showModal();
   Navigation.push(Views.RestartMoonlightDialog);
 
-  // Set the dialog as open
   isDialogOpen = true;
 
-  // Close the dialog if the OK button is pressed
   $('#pressOK').off('click');
   $('#pressOK').on('click', function() {
     restartMoonlightDialog.close();
-    // Remove the dialog from the DOM if the dialog is open
-    document.body.removeChild(restartMoonlightDialog);
     isDialogOpen = false;
     Navigation.pop();
   });
 }
 	
-// Function to create and show the Terminate Moonlight dialog
+// Function to show the Terminate Moonlight dialog
 function showTerminateMoonlightDialog() {
-  // Find the existing dialog element
   var terminateMoonlightDialog = document.querySelector('#terminateMoonlightDialog');
-
-  if (!terminateMoonlightDialog) {
-    // If the dialog element doesn't exist, create it
-    var terminateMoonlightDialog = document.createElement('dialog');
-    terminateMoonlightDialog.id = 'terminateMoonlightDialog';
-    terminateMoonlightDialog.classList.add('mdl-dialog');
-
-    // Create the dialog content
-    terminateMoonlightDialog.innerHTML = `
-      <h3 class="mdl-dialog__title">Exit Moonlight</h3>
-      <div class="mdl-dialog__content">
-        <p id="terminateMoonlightDialogText">
-          Are you sure you want to exit Moonlight?
-        </p>
-      </div>
-      <div class="mdl-dialog__actions">
-        <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="cancelTerminateMoonlight">Cancel</button>
-        <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="exitTerminateMoonlight">Exit</button>
-      </div>
-    `;
-
-    // Append the dialog to the DOM
-    document.body.appendChild(terminateMoonlightDialog);
-
-    // Initialize the dialog
-    componentHandler.upgradeElements(terminateMoonlightDialog);
-  }
-
-  // Show the dialog and push the view
+  
   terminateMoonlightDialog.showModal();
   Navigation.push(Views.TerminateMoonlightDialog);
 
@@ -555,8 +491,6 @@ function showTerminateMoonlightDialog() {
   $('#cancelTerminateMoonlight').off('click');
   $('#cancelTerminateMoonlight').on('click', function() {
     terminateMoonlightDialog.close();
-    // Remove the dialog from the DOM if the dialog is open
-    document.body.removeChild(terminateMoonlightDialog);
     isDialogOpen = false;
     Navigation.pop();
     Navigation.change(Views.Hosts);
@@ -566,8 +500,6 @@ function showTerminateMoonlightDialog() {
   $('#exitTerminateMoonlight').off('click');
   $('#exitTerminateMoonlight').on('click', function() {
     terminateMoonlightDialog.close();
-    // Remove the dialog from the DOM if the dialog is open
-    document.body.removeChild(terminateMoonlightDialog);
     isDialogOpen = false;
     Navigation.pop();
     tizen.application.getCurrentApplication().exit();
