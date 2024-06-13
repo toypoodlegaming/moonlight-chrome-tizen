@@ -36,11 +36,6 @@ enum GamepadButton {
   Count,
 };
 
-// Function to handle mouse click for the mouse emulation mode.
-void handleMouseClick(int state, int button) {
-  LiSendMouseButtonEvent(state, button);
-}
-
 // Function to create a mask for active gamepads
 static short GetActiveGamepadMask(int numGamepads) {
   short result = 0;
@@ -164,21 +159,21 @@ void MoonlightInstance::PollGamepads() {
         // Buttons are mapped to mouse clicks 
 
         if (buttonFlags & (A_FLAG | LB_FLAG)) {
-            handleMouseClick(BUTTON_ACTION_PRESS, BUTTON_LEFT);
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
         } else {
-            handleMouseClick(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
         }
 
         if (buttonFlags & (B_FLAG | RB_FLAG)) {
-            handleMouseClick(BUTTON_ACTION_PRESS, BUTTON_RIGHT);
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_RIGHT);
         } else {
-            handleMouseClick(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
         }
 
         if (buttonFlags & RS_CLK_FLAG) {
-            handleMouseClick(BUTTON_ACTION_PRESS, BUTTON_MIDDLE);
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_MIDDLE);
         } else {
-            handleMouseClick(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
         }
 
     } else { // Send gamepad input to the desired handler (act as a normal gamepad)
