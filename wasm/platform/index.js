@@ -84,6 +84,11 @@ function attachListeners() {
   });
 }
 
+function sendEscapeToHost() { //FIXME: workaround to send escape key to host
+  Module.sendLiSendKeyboardEvent(0x80 << 8 | 0x1B, 0x03, 0);
+  Module.sendLiSendKeyboardEvent(0x80 << 8 | 0x1B, 0x04, 0);
+}
+
 function repeatActionHandler() {
   if (repeatAction && Date.now() - lastInvokeTime > REPEAT_INTERVAL) {
       repeatAction();
@@ -1361,6 +1366,16 @@ function onWindowLoad() {
   loadWindowState();
   loadProductInfos();
   loadUserData();
+
+  var videoElement = document.getElementById('nacl_module'); //FIXME: workaround to send escape key to host
+  videoElement.addEventListener('keydown', function (event) {
+    if (event.key === 'XF86Back') {
+      if (isInGame) {
+        sendEscapeToHost();
+        videoElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window, clientX: 0, clientY: 0 }));
+      }
+    }
+  });
 }
 
 window.onload = onWindowLoad;
