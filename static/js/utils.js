@@ -419,9 +419,8 @@ NvHTTP.prototype = {
   // https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/filesystem-api.html
   getBoxArt: function (appId) {
     return new Promise(function (resolve, reject) {
-      var boxArtFileName = 'boxart-' + appId + '.png';
-      var boxArtDir = 'wgt-private'; // Tizen private storage directory, it's r/w and is deleted when the app is uninstalled. 
-
+      var boxArtFileName = 'boxart-' + appId;
+      var boxArtDir = 'wgt-private/' + this.hostname; // Tizen private storage directory, it's r/w and is deleted when the app is uninstalled. 
       try {
         var fileHandleRead = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "r");
         var fileContentInBlob = fileHandleRead.readBlob();
@@ -449,8 +448,7 @@ NvHTTP.prototype = {
 
             try {
               var fileHandleWrite = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "w");
-              var blob = new Blob([boxArtBuffer], { type: "image/png" });
-              fileHandleWrite.writeBlob(blob);
+              fileHandleWrite.writeData(boxArtBuffer);
               fileHandleWrite.close();
               console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
               resolve(dataUrl);
@@ -459,7 +457,8 @@ NvHTTP.prototype = {
               reject(writeError);
             }
           };
-          reader.readAsDataURL(new Blob([boxArtBuffer], { type: "image/png" }));
+          var blob = new Blob([boxArtBuffer], { type: "image/png" });
+          reader.readAsDataURL(blob);
         }.bind(this), function (error) {
           console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
           reject(error);
