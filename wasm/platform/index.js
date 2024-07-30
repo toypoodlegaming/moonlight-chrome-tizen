@@ -425,6 +425,8 @@ function addHostToGrid(host, ismDNSDiscovered) {
   }).appendTo(settingsDialog);
 
   var options = [ // host settings dialog options, used an array to make it easier to add more options
+    { text: 'Refresh box art', id: "refreshBoxArt-" + host.hostname, action: function () {host.purgeBoxArt(); } },
+    { text: 'Remove ' + host.hostname, id: "remove-" + host.hostname, action: function () {removeClicked(host); } }
   ];
 
   options.forEach(function (option) {

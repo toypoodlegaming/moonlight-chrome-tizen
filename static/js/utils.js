@@ -466,6 +466,20 @@ NvHTTP.prototype = {
       }
     }.bind(this));
   },
+
+  purgeBoxArt: function () {
+    return new Promise(function (resolve, reject) {
+        var boxArtDir = 'wgt-private/' + this.hostname;
+        try {
+            tizen.filesystem.deleteDirectory(boxArtDir);
+            console.log('%c[utils.js, purgeBoxArt]', 'color: gray;', 'Purging box art files from: ', boxArtDir);
+            resolve();
+        } catch (e) {
+            console.error('%c[utils.js, purgeAndFetchBoxArt]', 'color: gray;', 'Failed to delete box art files!', e);
+            reject(e);
+        }
+    }.bind(this));
+  },
     
   launchApp: function(appId, mode, sops, rikey, rikeyid, localAudio, surroundAudioInfo, gamepadMask) {
     return sendMessage('openUrl', [
