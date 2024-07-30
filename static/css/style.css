@@ -245,14 +245,14 @@ main {
     margin-top: 10px;
     margin-bottom: 10px;
 }
-.remove-host {
+.host-settings {
     position:absolute;
     right:5px;
     top:5px;
     width:24px;
     height:24px;
     z-index: 5;
-    background-image: url('../res/ic_remove_circle_outline_white_48px.svg');
+    background-image: url('../res/menu_48dp_E8EAED_FILL0_wght400_GRAD0_opsz48.svg');
     background-repeat: no-repeat;
     background-size: 20px 20px;
     background-position: center;
@@ -339,4 +339,14 @@ main {
   bottom: 1cm;
   left: 1cm;
   font-size : 12px;
+}
+.mdl-dialog__content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.mdl-dialog__content button {
+    margin-bottom: 10px; 
+    width: 100%; 
+}
 }

@@ -402,17 +402,66 @@ function addHostToGrid(host, ismDNSDiscovered) {
     class: "mdl-card__title-text",
     html: host.hostname
   }));
-  var removalButton = $("<div>", {
-    class: "remove-host",
-    id: "removeHostButton-" + host.serverUid,
+  var settingsButton = $("<div>", {
+    class: "host-settings",
+    id: "hostSettingsButton-" + host.serverUid,
     role: 'button',
     tabindex: 0,
-    'aria-label': 'Remove host ' + host.hostname
+    'aria-label': 'Settings ' + host.hostname
   });
-  removalButton.off('click');
-  removalButton.click(function() {
-    removeClicked(host);
+
+  var settingsDialog = $('<dialog>', {
+    class: 'mdl-dialog',
+    id: "settingsDialog-" + host.serverUid
+  }).appendTo(outerDiv);
+
+  $('<h4>', {
+    class: 'mdl-dialog__title',
+    text: 'Settings ' + host.hostname
+  }).appendTo(settingsDialog);
+
+  var dialogContent = $('<div>', {
+    class: 'mdl-dialog__content'
+  }).appendTo(settingsDialog);
+
+  var options = [ // host settings dialog options, used an array to make it easier to add more options
+  ];
+
+  options.forEach(function (option) {
+    var button = $('<button>', {
+      class: 'mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect',
+      text: option.text,
+      id: option.id
+    });
+    button.click(function() {
+      Navigation.pop();
+      option.action();
+      settingsDialog[0].close();
+    });
+    button.appendTo(dialogContent);
   });
+
+  $('<button>', {
+    type: 'button',
+    class: 'mdl-button',
+    text: 'Close',
+    id: 'closeSettingsDialog'
+  }).click(function () {
+    settingsDialog[0].close();
+    Navigation.pop();
+  }).appendTo($('<div>', {
+    class: 'mdl-dialog__actions'
+  }).appendTo(settingsDialog));
+
+  if (!settingsDialog[0].showModal) {
+    dialogPolyfill.registerDialog(settingsDialog[0]);
+  }
+
+  settingsButton.click(function () {
+    settingsDialog[0].showModal();
+    Navigation.push(Views.SettingsDialog, host.hostname);
+  });
+
   cell.off('click');
   cell.click(function() {
     hostChosen(host);
@@ -425,7 +474,7 @@ function addHostToGrid(host, ismDNSDiscovered) {
   $(outerDiv).append(cell);
   if (!ismDNSDiscovered) {
     // we don't have the option to delete mDNS hosts.  So don't show it to the user.
-    $(outerDiv).append(removalButton);
+    $(outerDiv).append(settingsButton);
   }
   $('#host-grid').append(outerDiv);
   hosts[host.serverUid] = host;

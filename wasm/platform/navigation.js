@@ -229,6 +229,18 @@ const Views = {
     enter: function () { mark(this.view.current()) },
     leave: function () { unmark(this.view.current()) },
   },
+  SettingsDialog: {
+    view: new ListView(function () {
+      const actions = ['wake', /*'showHiddenApps',*/ 'refreshBoxArt', 'remove', 'closeSettingsDialog'];
+      return actions.map(action => action === 'closeSettingsDialog' ? action : action + '-' + Views.SettingsDialog.hostname);
+    }),
+    accept: function () { document.getElementById(this.view.current()).click() },
+    back: function () { document.getElementById('closeSettingsDialog').click() },
+    down: function () { this.view.next() },
+    up: function () { this.view.prev() },
+    enter: function () { mark(this.view.current()) },
+    leave: function () { unmark(this.view.current()) },
+  },
   AppsNav: {
     view: new ListView(function () {
       return ['backIcon', 'quitCurrentApp']
@@ -317,9 +329,12 @@ const Navigation = (function () {
   const Stack = (function () {
     const viewStack = [];
 
-    function push(view) {
+    function push(view, hostname) {
       if (get()) {
         get().leave();
+      }
+      if (hostname !== undefined) {
+        view.hostname = hostname;
       }
       viewStack.push(view);
       get().enter();
