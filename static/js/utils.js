@@ -90,9 +90,10 @@ String.prototype.toHex = function() {
   return hex;
 }
 
-function NvHTTP(address, clientUid, userEnteredAddress = '') {
+function NvHTTP(address, clientUid, userEnteredAddress = '', macAddress) {
   console.log('%c[utils.js, NvHTTP Object]', 'color: gray;', this);
   this.address = address;
+  this.macAddress = macAddress;
   this.ppkstr = null;
   this.paired = false;
   this.currentGame = 0;
@@ -217,6 +218,7 @@ NvHTTP.prototype = {
       // as online initially
       if (this.paired && this._pollCount++ % 10 == 1) {
         this.getAppListWithCacheFlush();
+        updateMacAddress(this); //FIXME(?) : needed to correctly set the stored mac address (indexedDB)
       }
 
       this._consecutivePollFailures = 0;
@@ -267,6 +269,7 @@ NvHTTP.prototype = {
     var string = '';
     string += 'server address: ' + this.address + '\r\n';
     string += 'server UID: ' + this.serverUid + '\r\n';
+    string += 'mac address: ' + this.macAddress + '\r\n';
     string += 'is paired: ' + this.paired + '\r\n';
     string += 'current game: ' + this.currentGame + '\r\n';
     string += 'server major version: ' + this.serverMajorVersion + '\r\n';
@@ -302,6 +305,7 @@ NvHTTP.prototype = {
     this.serverMajorVersion = parseInt(this.appVersion.substring(0, 1), 10);
     this.serverUid = $root.find('uniqueid').text().trim();
     this.hostname = $root.find('hostname').text().trim();
+    this.macAddress = $root.find('mac').text().trim();
     this.serverCodecSupportMode = $root.find('ServerCodecModeSupport').text().trim();
 
     var externIP = $root.find('ExternalIP').text().trim();
@@ -553,5 +557,10 @@ NvHTTP.prototype = {
 
   _parseXML: function(xmlData) {
     return $($.parseXML(xmlData.toString()));
+  },
+
+  sendWOL: function() {
+    snackbarLogLong('Sending WOL request to ' + this.hostname + ' with mac address ' + this.macAddress);
+    return sendMessage('wakeOnLan', [this.macAddress]);
   },
 };

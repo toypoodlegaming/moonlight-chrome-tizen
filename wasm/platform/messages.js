@@ -18,6 +18,8 @@ const AsyncFunctions = {
   'STUN': (...args) => Module.STUN(...args),
   // serverMajorVersion, address, randomNumber
   'pair': (...args) => Module.pair(...args),
+  // mac address
+  'wakeOnLan': (...args) => Module.wakeOnLan(...args),
 };
 
 var callbacks = {}

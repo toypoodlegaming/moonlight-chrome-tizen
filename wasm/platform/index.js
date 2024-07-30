@@ -209,6 +209,19 @@ function stopBackgroundPollingOfHost(host) {
   delete activePolls[host.serverUid];
 }
 
+function updateMacAddress(host) { //FIXME(?) : needed to correctly set the stored mac address (indexedDB)
+  getData('hosts', function (previousValue) {
+    var hosts = previousValue.hosts != null ? previousValue.hosts : {};
+    var currentHostUID = host.serverUid;
+    if (host.macAddress != "00:00:00:00:00:00") {
+      if (hosts[currentHostUID] && hosts[currentHostUID].macAddress != host.macAddress) {
+        console.log("Updated MAC address for host " + host.hostname + " from " + hosts[currentHostUID].macAddress + " to " + host.macAddress);
+        saveHosts();
+      }
+    }
+  });
+}
+
 function snackbarLog(givenMessage) {
   console.log('%c[index.js, snackbarLog]', 'color: green;', givenMessage);
   var data = {
@@ -425,6 +438,8 @@ function addHostToGrid(host, ismDNSDiscovered) {
   }).appendTo(settingsDialog);
 
   var options = [ // host settings dialog options, used an array to make it easier to add more options
+    { text: 'Wake PC (WOL)', id: "wake-" + host.hostname, action: function () {host.sendWOL(); } },
+    // { text: 'Show hidden Apps (WIP)', id: "showHiddenApps-" + host.hostname, action: null }, //TODO: implement this
     { text: 'Refresh box art', id: "refreshBoxArt-" + host.hostname, action: function () {host.purgeBoxArt(); } },
     { text: 'Remove ' + host.hostname, id: "remove-" + host.hostname, action: function () {removeClicked(host); } }
   ];
@@ -1394,7 +1409,7 @@ function loadHTTPCertsCb() {
       getData('hosts', function(previousValue) {
         hosts = previousValue.hosts != null ? previousValue.hosts : {};
         for (var hostUID in hosts) { // programmatically add each new host.
-          var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress);
+        var revivedHost = new NvHTTP(hosts[hostUID].address, myUniqueid, hosts[hostUID].userEnteredAddress, hosts[hostUID].macAddress);
           revivedHost.serverUid = hosts[hostUID].serverUid;
           revivedHost.externalIP = hosts[hostUID].externalIP;
           revivedHost.hostname = hosts[hostUID].hostname;
