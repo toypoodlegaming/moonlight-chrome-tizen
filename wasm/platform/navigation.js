@@ -91,14 +91,14 @@ const Views = {
       if (element.id === 'addHostCell') {
         element.click();
       } else {
-        element.children[0].click();
+        element.children[1].click();
       }
     },
     back: function () { showTerminateMoonlightDialog() },
     startBtn: function () {
       const element = this.view.current();
       if (element.id != 'addHostCell') {
-        element.children[1].click();
+        element.children[2].click();
       }
     },
     selectBtn: function () { }, //for future use
