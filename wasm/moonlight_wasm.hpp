@@ -35,6 +35,13 @@
 // since our HTTP request libary is synchronous.
 #define HTTP_HANDLER_THREADS 8
 
+#ifndef AV_INPUT_BUFFER_PADDING_SIZE
+  #define AV_INPUT_BUFFER_PADDING_SIZE 64
+#endif
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 struct MessageResult {
   std::string type;
   emscripten::val ret;
@@ -50,6 +57,31 @@ struct MessageResult {
   }
 };
 
+typedef struct _VIDEO_STATS {
+    uint32_t receivedFrames;
+    uint32_t decodedFrames;
+    uint32_t renderedFrames;
+    uint32_t totalFrames;
+    uint32_t networkDroppedFrames;
+    uint32_t pacerDroppedFrames;
+    uint16_t minHostProcessingLatency;
+    uint16_t maxHostProcessingLatency;
+    uint32_t totalHostProcessingLatency;
+    uint32_t framesWithHostProcessingLatency;
+    uint32_t totalReassemblyTime;
+    uint32_t totalDecodeTime;
+    uint32_t totalPacerTime;
+    uint32_t totalRenderTime;
+    uint32_t lastRtt;
+    uint32_t lastRttVariance;
+    float totalFps;
+    float receivedFps;
+    float decodedFps;
+    float renderedFps;
+    uint32_t measurementStartTimestamp;
+    float bitrate_mbps;
+} VIDEO_STATS, *PVIDEO_STATS;
+
 enum class LoadResult { Success, CertErr, PrivateKeyErr };
 
 constexpr const char* kCanvasName = "#nacl_module";
@@ -61,8 +93,9 @@ public:
   MessageResult StartStream(std::string host, std::string width,
   std::string height, std::string fps, std::string bitrate, std::string rikey,
   std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-  bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig);
+  bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig, bool statsEnabled);
   MessageResult StopStream();
+  void ToggleStats();
 
   void STUN(int callbackId);
   void Pair(int callbackId, std::string serverMajorVersion, std::string address, std::string randomNumber);
@@ -118,6 +151,8 @@ public:
   static int StartupVidDecSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags);
   static void VidDecCleanup(void);
   static int VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit);
+  static void addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst);
+  static void stringifyVideoStats(VIDEO_STATS& stats, char* output, int length);
 
   static int AudDecInit(int audioConfiguration, POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* context, int flags);
   static void AudDecCleanup(void);
@@ -193,7 +228,8 @@ public:
   bool m_HdrEnabled;
   STREAM_CONFIGURATION m_StreamConfig;
   bool m_Running;
-  int m_serverCodecModeSupport;
+  int m_ServerCodecModeSupport;
+  bool m_StatsEnabled = false; // linked with KEY_YELLOW
 
   pthread_t m_ConnectionThread;
   pthread_t m_InputThread;
@@ -234,6 +270,7 @@ public:
 extern MoonlightInstance* g_Instance;
 
 void PostToJs(std::string msg);
+void PostToJsAsync(std::string msg);
 void PostPromiseMessage(int callbackId, const std::string& type, const std::string& response);
 void PostPromiseMessage(int callbackId, const std::string& type, const std::vector<uint8_t>& response);
 
@@ -245,9 +282,10 @@ void openUrl(int callbackId, std::string url, emscripten::val ppk, bool binaryRe
 MessageResult startStream(std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid, std::string appversion,
 std::string gfeversion, std::string rtspurl, bool framePacing, bool audioSync, bool hdrEnabled, 
-std::string codecVideo, std::string audioConfig);
+std::string codecVideo, std::string audioConfig, bool statsEnabled);
 
 MessageResult stopStream();
+void toggleStats();
 
 void stun(int callbackId);
 void pair(int callbackId, std::string serverMajorVersion, std::string address, std::string randomNumber);

@@ -310,6 +310,7 @@ main {
     margin: auto !important;
     padding: 0 !important;
     border: none !important;
+    z-index: 1;
 }
 .current-game {
     outline: auto #8BC34A;
@@ -383,4 +384,16 @@ main {
   position: fixed;
   bottom: 1cm;
   left: 1cm;
+}
+#stream_stats {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 3;
+    
+    background: transparent;
+    color: yellow;
+    font-size: 1.8rem;
+
+    white-space: pre-wrap;
 }

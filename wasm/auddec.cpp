@@ -34,28 +34,31 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track,
                                   OpusMSDecoder* decoder,
                                   const unsigned char* sampleData,
                                   int sampleLength) {
-  int decodeLen = opus_multistream_decode(
+  int samplesDecoded = opus_multistream_decode(
       decoder,
       sampleData, sampleLength,
       s_DecodeBuffer.data(), 
       s_samplesPerFrame,
       0);
 
-  if (decodeLen <= 0) {
-    s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0);
+  if (samplesDecoded <= 0) {
+    s_DecodeBuffer.assign(s_DecodeBuffer.size(), 0); // Clear buffer on decode error
+    return;
   }
+
+  size_t desiredSize = sizeof(opus_int16) * samplesDecoded * s_channelCount;
 
   samsung::wasm::ElementaryMediaPacket pkt{
      s_pktPts,
      s_pktPts,
      s_frameDuration,
      true,
-     decodeLen * sizeof(opus_int16) * s_channelCount,
+     desiredSize,
      s_DecodeBuffer.data(),
      0,
      0,
      0,
-     1,
+     0,
      session_id
   };
 
@@ -63,6 +66,10 @@ static void DecodeAndAppendPacket(samsung::wasm::ElementaryMediaTrack* track,
     s_pktPts += s_frameDuration;
   } else {
     MoonlightInstance::ClLogMessage("Append audio packet failed\n");
+  }
+
+  if (desiredSize > s_DecodeBuffer.size()) {
+    s_DecodeBuffer.resize(desiredSize);
   }
 }
 

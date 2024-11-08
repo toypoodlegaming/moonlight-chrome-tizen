@@ -27,6 +27,7 @@ function changeUiModeForNaClLoad() {
   $("#main-content").children().not("#listener, #naclSpinner").hide();
   $('#naclSpinnerMessage').text('Loading Moonlight plugin...');
   $('#naclSpinner').css('display', 'inline-block');
+  $('#stream_stats').css('display', 'inline-block');
 }
 
 function startPollingHosts() {
@@ -467,6 +468,7 @@ function showApps(host) {
   // Show a spinner while the applist loads
   $('#naclSpinnerMessage').text('Loading apps...');
   $('#naclSpinner').css('display', 'inline-block');
+  $('#stream_stats').css('display', 'inline-block');
 
   $("div.game-container").remove();
 

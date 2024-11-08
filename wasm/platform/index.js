@@ -37,7 +37,8 @@ function attachListeners() {
   $('.audioConfigMenu li').on('click', saveAudioConfig);
   $('#audioSyncSwitch').on('click', saveAudioSync);
   $('#hdrSwitch').on('click', saveHdr);
-  $('.codecVideoMenu li').on('click', saveCodecVideo);													  
+  $('.codecVideoMenu li').on('click', saveCodecVideo);
+  $('#statsSwitch').on('click', saveStats);
   $('#addHostCell').on('click', addHost);
   $('#backIcon').on('click', showHostsAndSettingsMode);
   $('#quitCurrentApp').on('click', stopGameWithConfirmation);
@@ -149,6 +150,7 @@ function changeUiModeForNaClLoad() {
   $("#main-content").children().not("#listener, #naclSpinner").hide();
   $('#naclSpinnerMessage').text('Loading Moonlight plugin...');
   $('#naclSpinner').css('display', 'inline-block');
+  $('#stream_stats').css('display', 'inline-block');
 }
 
 function startPollingHosts() {
@@ -669,6 +671,7 @@ function showApps(host) {
   // Show a spinner while the applist loads
   $('#naclSpinnerMessage').text('Loading apps...');
   $('#naclSpinner').css('display', 'inline-block');
+  $('#stream_stats').css('display', 'inline-block');
 
   $("div.game-container").remove();
 
@@ -855,6 +858,7 @@ function startGame(host, appID) {
       const audioSyncEnabled = $('#audioSyncSwitch').parent().hasClass('is-checked') ? 1 : 0;
       const hdrEnabled = $('#hdrSwitch').parent().hasClass('is-checked') ? 1 : 0;
       var audioConfig = $('#selectAudioConfig').data('value').toString();
+      const statsEnabled = $('#statsSwitch').parent().hasClass('is-checked') ? 1 : 0;
       console.log('%c[index.js, startGame]', 'color:green;',
                   'startRequest:' + host.address +
                   ":" + streamWidth +
@@ -866,7 +870,9 @@ function startGame(host, appID) {
                   ":" + audioSyncEnabled,
                   ":" + hdrEnabled,
                   ":" + codecVideo,
-                  ":" + audioConfig);
+                  ":" + audioConfig,
+                  ":" + statsEnabled
+                  );
 
       var rikey = generateRemoteInputKey();
       var rikeyid = generateRemoteInputKeyId();
@@ -903,7 +909,8 @@ function startGame(host, appID) {
             audioSyncEnabled,
             hdrEnabled,
             codecVideo,
-            audioConfig		 
+            audioConfig,
+            statsEnabled
           ]);
         }, function(failedResumeApp) {
           console.error('%c[index.js, startGame]', 'color:green;', 'Failed to resume the app! Returned error was' + failedResumeApp);
@@ -946,7 +953,8 @@ function startGame(host, appID) {
           audioSyncEnabled,
           hdrEnabled,
           codecVideo,
-          audioConfig
+          audioConfig,
+          statsEnabled
         ]);
       }, function(failedLaunchApp) {
         console.error('%c[index.js, launchApp]', 'color: green;', 'Failed to launch app width id: ' + appID + '\nReturned error was: ' + failedLaunchApp);
@@ -973,6 +981,9 @@ function playGameMode() {
   fullscreenNaclModule();
   $('#loadingSpinner').css('display', 'inline-block');
   Navigation.stop();
+
+  $('#stream_stats').css('display', 'inline-block');
+  $('#stream_stats').show();
 }
 
 // Maximize the size of the nacl module by scaling and resizing appropriately
@@ -1258,6 +1269,14 @@ function saveHdr() {
   }, 100);
 }
 
+function saveStats() {
+  setTimeout(function() {
+    const chosenStats = $("#statsSwitch").parent().hasClass('is-checked');
+    console.log('%c[index.js, saveStats]', 'color: green;', 'Saving Stats state : ' + chosenStats);
+    storeData('stats', chosenStats, null);
+  }, 100);
+}
+
 function saveCodecVideo() {
   var chosenCodecVideo = $(this).data('value');
   $('#selectCodecVideo').text($(this).text()).data('value', chosenCodecVideo);
@@ -1312,52 +1331,66 @@ function saveRemoteAudio() {
 function updateDefaultBitrate() {
   var res = $('#selectResolution').data('value');
   var frameRate = $('#selectFramerate').data('value').toString();
+  var resSplit = res.split(":");
+  var width = parseInt(resSplit[0]);
+  var height = parseInt(resSplit[1]);
+  var newBitrate = getDefaultBitrate(width, height, frameRate);
 
-  // These quality presets include video resolution like 480p, 720p, 1080p, 1440p, 2160p (4K) and video frame rate like 30 FPS and 60 FPS
-  if (res === "858:480") {
-    if (frameRate === "30") { // 480p, 30 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('2');
-    } else { // 480p, 60 FPS
-      $('#bitrateSlider')[0].MaterialSlider.change('4');
-    }
-  } else if (res === "1280:720") {
-    if (frameRate === "30") { // 720, 30fps
-      $('#bitrateSlider')[0].MaterialSlider.change('5');
-    } else if (frameRate === "60") { // 720, 60fps
-      $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else { // 720, 120fps
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    }
-  } else if (res === "1920:1080") {
-    if (frameRate === "30") { // 1080p, 30fps
-      $('#bitrateSlider')[0].MaterialSlider.change('10');
-    } else if (frameRate === "60") { // 1080p, 60fps
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else { // 1080p, 120fps
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
-    }
-  } else if (res === "2560:1440") {
-    if (frameRate === "30") { // 1440, 30fps
-      $('#bitrateSlider')[0].MaterialSlider.change('20');
-    } else if (frameRate === "60") { // 1440, 60fps
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
-    } else { // 1440, 120fps
-      $('#bitrateSlider')[0].MaterialSlider.change('80');
-    }
-  } else if (res === "3840:2160") {
-    if (frameRate === "30") { // 2160p, 30fps
-      $('#bitrateSlider')[0].MaterialSlider.change('40');
-    } else if (frameRate === "60") { // 2160p, 60fps
-      $('#bitrateSlider')[0].MaterialSlider.change('80');
-    } else { // 2160p, 120fps
-      $('#bitrateSlider')[0].MaterialSlider.change('120');
-    }
-  } else { // unrecognized option. In case someone screws with the JS to add custom resolutions
-    $('#bitrateSlider')[0].MaterialSlider.change('10');
+  if (newBitrate <= 0) {
+    newBitrate = 20;
   }
+
+  $('#bitrateSlider')[0].MaterialSlider.change(newBitrate / 1000);
 
   updateBitrateField();
   saveBitrate();
+}
+
+function getDefaultBitrate(width, height, fps) {
+  // Don't scale bitrate linearly beyond 60 FPS. It's definitely not a linear
+  // bitrate increase for frame rate once we get to values that high.
+  let frameRateFactor = (fps <= 60 ? fps : (Math.sqrt(fps / 60) * 60)) / 30;
+
+  // TODO: Collect some empirical data to see if these defaults make sense.
+  // We're just using the values that the Shield used, as we have for years.
+  const resTable = [
+    { pixels: 640 * 360, factor: 1 },
+    { pixels: 854 * 480, factor: 2 },
+    { pixels: 1280 * 720, factor: 5 },
+    { pixels: 1920 * 1080, factor: 10 },
+    { pixels: 2560 * 1440, factor: 20 },
+    { pixels: 3840 * 2160, factor: 40 },
+    { pixels: -1, factor: -1 },
+  ];
+
+  // Calculate the resolution factor by linear interpolation of the resolution table
+  let resolutionFactor;
+  let pixels = width * height;
+  for (let i = 0; ; i++) {
+    if (pixels === resTable[i].pixels) {
+      // We can bail immediately for exact matches
+      resolutionFactor = resTable[i].factor;
+      break;
+    }
+    else if (pixels < resTable[i].pixels) {
+      if (i === 0) {
+        // Never go below the lowest resolution entry
+        resolutionFactor = resTable[i].factor;
+      }
+      else {
+        // Interpolate between the entry greater than the chosen resolution (i) and the entry less than the chosen resolution (i-1)
+        resolutionFactor = ((pixels - resTable[i - 1].pixels) / (resTable[i].pixels - resTable[i - 1].pixels)) * (resTable[i].factor - resTable[i - 1].factor) + resTable[i - 1].factor;
+      }
+      break;
+    }
+    else if (resTable[i].pixels === -1) {
+      // Never go above the highest resolution entry
+      resolutionFactor = resTable[i - 1].factor;
+      break;
+    }
+  }
+
+  return Math.round(resolutionFactor * frameRateFactor) * 1000;
 }
 
 function initSamsungKeys() {
@@ -1377,6 +1410,9 @@ function initSamsungKeys() {
       'ChannelList',   // F7
       'ChannelDown',   // F11
       'ChannelUp',     // F12
+      'MediaPlayPause',
+      'MediaPlay',
+      'Info'
     ],
     onKeydownListener: remoteControllerHandler
   };
@@ -1480,6 +1516,17 @@ function loadUserDataCb() {
           $('#selectAudioConfig').text($(this).text()).data('value', previousValue.audioConfig);
         }
       });
+    }
+  });
+
+  console.log('load stats prefs');
+  getData('stats', function(previousValue) {
+    if (previousValue.stats == null) {
+      document.querySelector('#statsBtn').MaterialIconToggle.check();
+    } else if (previousValue.stats == false) {
+      document.querySelector('#statsBtn').MaterialIconToggle.uncheck();
+    } else {
+      document.querySelector('#statsBtn').MaterialIconToggle.check();
     }
   });
 

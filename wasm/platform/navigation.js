@@ -129,7 +129,9 @@ const Views = {
       'framePacingBtn',
       'audioSyncBtn',
       'hdrBtn',
-      'selectAudioConfig']),
+      'selectAudioConfig',
+      'statsBtn'
+    ]),
     left: function() {
       this.view.prev();
     },

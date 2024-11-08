@@ -13,6 +13,7 @@ function remoteControllerHandler(e) {
         case tvKey.KEY_VOLUME_UP:
         case tvKey.KEY_VOLUME_DOWN:
         case tvKey.KEY_VOLUME_MUTE:
+        case tvKey.KEY_INFO:
             e.preventDefault();
             break;
         default:
@@ -51,5 +52,9 @@ function remoteControllerHandler(e) {
         case tvKey.KEY_RED:
             Module.stopStream();
             break;
-          }
+        case tvKey.KEY_INFO:
+        case tvKey.KEY_YELLOW:    
+            Module.toggleStats();
+            break;
+    }
 }

@@ -45,10 +45,14 @@
               <button id="selectFramerate" data-value="60" class="mdl-button mdl-js-button">60 FPS</button>
             </div>
 
-<ul class="framerateMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectFramerate">
+            <ul class="framerateMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectFramerate">
               <li class="mdl-menu__item" data-value="30">30 FPS</li>
               <li class="mdl-menu__item" data-value="60">60 FPS</li>
+              <li class="mdl-menu__item" data-value="75">75 FPS</li>
+              <li class="mdl-menu__item" data-value="90">90 FPS</li>
+              <li class="mdl-menu__item" data-value="100">100 FPS</li>
               <li class="mdl-menu__item" data-value="120">120 FPS</li>
+              <li class="mdl-menu__item" data-value="144">144 FPS</li>
             </ul>
 
             <div id="framerateTooltip" class="mdl-tooltip" for="framerateMenu">Framerate</div>
@@ -131,6 +135,14 @@
             </ul>
             <div id="audioConfigMenuTooltip" class="mdl-tooltip" for="audioConfigMenu">Audio Config</div>
           </div>
+
+          <div class="nav-menu-parent">
+            <label id="statsBtn" class="mdl-icon-toggle mdl-js-icon-toggle mdl-js-ripple-effect" for="statsSwitch">
+              <input type="checkbox" id="statsSwitch" class="mdl-icon-toggle__input">
+              <i class="mdl-icon-toggle__label material-icons">av_timer</i>
+            </label>
+            <div id="statsTooltip" class="mdl-tooltip" for="statsBtn">Enable Stats</div>
+          </div>
 		  
           <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="quitCurrentApp" aria-label="Quit current app">
             <i class="material-icons">remove_circle_outline</i>Quit Current App
@@ -157,6 +169,7 @@
       </div>
       <div id="modelCodePlaceholder"></div>
     </main>
+    <div id="stream_stats"></div>
   </div>
   <script defer src="static/js/jquery-2.2.0.min.js"></script>
   <script defer src="static/js/material.min.js"></script>
