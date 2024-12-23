@@ -30,12 +30,13 @@ Ensure Docker Desktop is running and close any resource-intensive applications.
 3. **Install the Application**:
    - Connect and install via Smart Development Bridge:
      ```
-     sdb connect YOUR_TV_IP
-     sdb devices
-     tizen install -n Moonlight.wgt -t YOUR_DEVICE_ID
+     sdb connect <YOUR_TV_IP>
+     tizen install -n Moonlight.wgt
      exit
      ```
-   - Replace `YOUR_TV_IP` and `YOUR_DEVICE_ID` with your TV's IP and Device ID respectively.
+   - Replace `YOUR_TV_IP` with your TV's IP.
+   
+   > **Note**: If you have multiple TVs connected to SDB, you need to specify the target TV. Use the `-t <device_id>` option, where `<device_id>` is the ID shown in the last column of the output from the `sdb devices` command.
 
 4. **(Optional) Disable Developer Mode**:
    - Revisit the `Apps` panel to turn off Developer mode and restart the TV.
