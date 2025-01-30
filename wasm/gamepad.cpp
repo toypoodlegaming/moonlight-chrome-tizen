@@ -10,6 +10,8 @@
 
 // Define a combination of buttons on the Xbox controller to stop streaming
 const short STOP_STREAM_BUTTONS_FLAGS = LB_FLAG | RB_FLAG | BACK_FLAG | PLAY_FLAG;
+// Define a combination of buttons on the Xbox controller to send the home button
+const short HOME_BUTTON_FLAGS = BACK_FLAG | PLAY_FLAG;
 
 // For explanation on ordering, see: https://www.w3.org/TR/gamepad/#remapping
 // Enumeration for gamepad axes
@@ -94,7 +96,7 @@ void MoonlightInstance::PollGamepads() {
       continue; /* Skip disconnected gamepads */
     }
 
-    const auto buttonFlags = GetButtonFlags(gamepad);
+    auto buttonFlags = GetButtonFlags(gamepad);
     const auto leftTrigger = gamepad.analogButton[GamepadButton::LeftTrigger]
       * std::numeric_limits<unsigned char>::max();
     const auto rightTrigger = gamepad.analogButton[GamepadButton::RightTrigger]
@@ -108,10 +110,12 @@ void MoonlightInstance::PollGamepads() {
     const auto rightStickY = -gamepad.axis[GamepadAxis::RightY]
       * std::numeric_limits<short>::max();
 
-    if (buttonFlags == STOP_STREAM_BUTTONS_FLAGS) {
+    if (buttonFlags == STOP_STREAM_BUTTONS_FLAGS) { // Stop streaming shortcut
       PostToJs(std::string("stopping stream, button flags is ") + std::to_string(buttonFlags));
       stopStream();
       return;
+    } else if (buttonFlags == HOME_BUTTON_FLAGS) { // Home button shortcut
+      buttonFlags = SPECIAL_FLAG;
     }
 
     // Send gamepad input to the desired handler

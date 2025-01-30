@@ -193,13 +193,12 @@ int height, int redrawRate, void* context, int drFlags) {
       mimetype = "video/mp4; codecs=\"hev1.1.6.L93.B0\"";  // h265 main mimeType
     } else if(videoFormat & VIDEO_FORMAT_H264) {
       mimetype = "video/mp4; codecs=\"avc1.64002A\"";  // h264 High Profile 4.2 mimeType
-    } else if(videoFormat & VIDEO_FORMAT_AV1_MAIN10) {
-      //https://developer.mozilla.org/en-US/docs/Web/Media/Formats/codecs_parameter#av1
-      //mimetype = "video/mp4; codecs=\"av01.0.15M.10\""; // AV1 4k 120fps Main 10-bit profile
-      mimetype = "video/mp4; codecs=\"av01.1.15H.10\""; // AV1 4k 120fps High 10-bit profile
-    } else if(videoFormat & VIDEO_FORMAT_AV1_MAIN8) {
-      mimetype = "video/mp4; codecs=\"av01.1.15H.08\""; // AV1 4k 120fps High 8-bit profile
-    } else {
+    } else if (videoFormat & VIDEO_FORMAT_AV1_MAIN8) {
+      mimetype = "video/mp4; codecs=\"av01.0.13M.08\"";  // AV1 Main Profile, level 5.1, Main tier, 8 bits
+    } else if (videoFormat & VIDEO_FORMAT_AV1_MAIN10) {
+      mimetype = "video/mp4; codecs=\"av01.0.13M.10\"";  // AV1 Main Profile, level 5.1, Main tier, 10 bits
+    }
+    else {
       ClLogMessage("Cannot select mime type for videoFormat=0x%x\n", videoFormat);
       return -1;
     }

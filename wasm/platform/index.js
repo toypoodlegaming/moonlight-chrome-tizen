@@ -848,7 +848,7 @@ function startGame(host, appID) {
       }
 
       var frameRate = $('#selectFramerate').data('value').toString();
-	  var codecVideo = $('#selectCodecVideo').data('value').toString();
+      var codecVideo = $('#selectCodecVideo').data('value').toString();
       var optimize = $("#optimizeGamesSwitch").parent().hasClass('is-checked') ? 1 : 0;
       var streamWidth = $('#selectResolution').data('value').split(':')[0];
       var streamHeight = $('#selectResolution').data('value').split(':')[1];
@@ -904,11 +904,12 @@ function startGame(host, appID) {
             rikeyid.toString(),
             host.appVersion,
             "",
-			$root.find('sessionUrl0').text().trim(),
-			framePacingEnabled,
+            $root.find('sessionUrl0').text().trim(),
+            framePacingEnabled,
             audioSyncEnabled,
             hdrEnabled,
             codecVideo,
+            host.serverCodecSupportMode,
             audioConfig,
             statsEnabled
           ]);
@@ -948,11 +949,12 @@ function startGame(host, appID) {
           rikeyid.toString(),
           host.appVersion,
           "",
-		  $root.find('sessionUrl0').text().trim(),
+		      $root.find('sessionUrl0').text().trim(),
           framePacingEnabled,
           audioSyncEnabled,
           hdrEnabled,
           codecVideo,
+          host.serverCodecSupportMode,
           audioConfig,
           statsEnabled
         ]);

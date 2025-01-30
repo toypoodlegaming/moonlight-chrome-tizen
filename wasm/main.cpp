@@ -177,7 +177,7 @@ MessageResult MoonlightInstance::StartStream(
 std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid,
 std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig, bool statsEnabled) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode, std::string audioConfig, bool statsEnabled) {
   PostToJs("Setting stream width to: " + width);
   PostToJs("Setting stream height to: " + height);
   PostToJs("Setting stream fps to: " + fps);
@@ -192,6 +192,7 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig
   PostToJs("Setting audio syncing to: " + std::to_string(audioSync));
   PostToJs("Setting HDR to:" + std::to_string(hdrEnabled));
   PostToJs("Setting videoCodec: " + codecVideo);
+  PostToJs("Setting serverCodecSupportMode: " + serverCodecSupportMode);
   PostToJs("Setting audioConfig: " + audioConfig);
   PostToJs("Setting stats to: " + std::to_string(statsEnabled));
 
@@ -261,9 +262,12 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig
   m_FramePacingEnabled = framePacing;
   m_AudioSyncEnabled = audioSync;
   m_HdrEnabled = hdrEnabled;
+
   m_ServerCodecModeSupport = derivedVideoFormats; // FIXME value should come from the server
   m_AudioConfig = m_StreamConfig.audioConfiguration;
   m_StatsEnabled = statsEnabled;
+
+  m_supportedVideoFormats = stoi(serverCodecSupportMode);
   
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
@@ -367,10 +371,10 @@ int main(int argc, char** argv) {
 MessageResult startStream(std::string host, std::string width,
 std::string height, std::string fps, std::string bitrate, std::string rikey,
 std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo, std::string audioConfig, bool statsEnabled) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
   printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(), width.c_str(), height.c_str());
   return g_Instance->StartStream(host, width, height, fps, bitrate, rikey,
-  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, audioConfig, statsEnabled);
+  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, serverCodecSupportMode, audioConfig, statsEnabled);
 }
 
 MessageResult stopStream() { return g_Instance->StopStream(); }
