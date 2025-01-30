@@ -1347,50 +1347,15 @@ function updateDefaultBitrate() {
 }
 
 function getDefaultBitrate(width, height, fps) {
-  // Don't scale bitrate linearly beyond 60 FPS. It's definitely not a linear
-  // bitrate increase for frame rate once we get to values that high.
-  let frameRateFactor = (fps <= 60 ? fps : (Math.sqrt(fps / 60) * 60)) / 30;
+  // Reference for bitrate calculation formula: https://www.reddit.com/r/MoonlightStreaming/comments/1gg2cdy/sweet_spot_bitrate/
+  var codecVideo = $('#selectCodecVideo').data('value').toString();
+  var codecReductionFactor = {"HEVC" :  0.6, "AV1" : 0.4}[codecVideo] || 1.0;
+ 
+  var h264Bitrate = width * height * fps / 6630.5;
 
-  // TODO: Collect some empirical data to see if these defaults make sense.
-  // We're just using the values that the Shield used, as we have for years.
-  const resTable = [
-    { pixels: 640 * 360, factor: 1 },
-    { pixels: 854 * 480, factor: 2 },
-    { pixels: 1280 * 720, factor: 5 },
-    { pixels: 1920 * 1080, factor: 10 },
-    { pixels: 2560 * 1440, factor: 20 },
-    { pixels: 3840 * 2160, factor: 40 },
-    { pixels: -1, factor: -1 },
-  ];
+  var finalBitrate = h264Bitrate * codecReductionFactor;
 
-  // Calculate the resolution factor by linear interpolation of the resolution table
-  let resolutionFactor;
-  let pixels = width * height;
-  for (let i = 0; ; i++) {
-    if (pixels === resTable[i].pixels) {
-      // We can bail immediately for exact matches
-      resolutionFactor = resTable[i].factor;
-      break;
-    }
-    else if (pixels < resTable[i].pixels) {
-      if (i === 0) {
-        // Never go below the lowest resolution entry
-        resolutionFactor = resTable[i].factor;
-      }
-      else {
-        // Interpolate between the entry greater than the chosen resolution (i) and the entry less than the chosen resolution (i-1)
-        resolutionFactor = ((pixels - resTable[i - 1].pixels) / (resTable[i].pixels - resTable[i - 1].pixels)) * (resTable[i].factor - resTable[i - 1].factor) + resTable[i - 1].factor;
-      }
-      break;
-    }
-    else if (resTable[i].pixels === -1) {
-      // Never go above the highest resolution entry
-      resolutionFactor = resTable[i - 1].factor;
-      break;
-    }
-  }
-
-  return Math.round(resolutionFactor * frameRateFactor) * 1000;
+  return Math.round(finalBitrate);
 }
 
 function initSamsungKeys() {
@@ -1521,12 +1486,10 @@ function loadUserDataCb() {
 
   console.log('load stats prefs');
   getData('stats', function(previousValue) {
-    if (previousValue.stats == null) {
+    if (previousValue.stats == true) {
       document.querySelector('#statsBtn').MaterialIconToggle.check();
-    } else if (previousValue.stats == false) {
-      document.querySelector('#statsBtn').MaterialIconToggle.uncheck();
     } else {
-      document.querySelector('#statsBtn').MaterialIconToggle.check();
+      document.querySelector('#statsBtn').MaterialIconToggle.uncheck();
     }
   });
 
