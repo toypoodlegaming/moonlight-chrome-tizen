@@ -350,7 +350,7 @@ int MoonlightInstance::VidDecSubmitDecodeUnit(PDECODE_UNIT decodeUnit) {
           
           stringifyVideoStats(lastTwoWndStats, s_StatString.data(), s_StatString.length());
 
-          PostToJsAsync(std::string("StatMsg: " + s_StatString));
+          PostToJs(std::string("StatMsg: " + s_StatString));
           std::fill(s_StatString.begin(), s_StatString.end(), ' ');
           total_bytes = 0;
       }
