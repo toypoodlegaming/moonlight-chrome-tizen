@@ -21,16 +21,23 @@
 static HMODULE WlanApiLibraryHandle;
 static HANDLE WlanHandle;
 
+#if defined(LC_WINDOWS_DESKTOP)
 DWORD (WINAPI *pfnWlanOpenHandle)(DWORD dwClientVersion, PVOID pReserved, PDWORD pdwNegotiatedVersion, PHANDLE phClientHandle);
 DWORD (WINAPI *pfnWlanCloseHandle)(HANDLE hClientHandle, PVOID pReserved);
 DWORD (WINAPI *pfnWlanEnumInterfaces)(HANDLE hClientHandle, PVOID pReserved, PWLAN_INTERFACE_INFO_LIST *ppInterfaceList);
 VOID (WINAPI *pfnWlanFreeMemory)(PVOID pMemory);
 DWORD (WINAPI *pfnWlanSetInterface)(HANDLE hClientHandle, CONST GUID *pInterfaceGuid, WLAN_INTF_OPCODE OpCode, DWORD dwDataSize, CONST PVOID pData, PVOID pReserved);
+#endif
 
 #ifndef WLAN_API_MAKE_VERSION
 #define WLAN_API_MAKE_VERSION(_major, _minor)   (((DWORD)(_minor)) << 16 | (_major))
 #endif
 
+#endif
+
+#ifdef __3DS__
+in_port_t n3ds_udp_port = 47998;
+static const int n3ds_max_buf_size = 0x20000;
 #endif
 
 void addrToUrlSafeString(struct sockaddr_storage* addr, char* string, size_t stringLength)
@@ -72,8 +79,8 @@ int setNonFatalRecvTimeoutMs(SOCKET s, int timeoutMs) {
     // losing some data in a very rare case is fine, especially because we get to
     // halve the number of syscalls per packet by avoiding select().
     return setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeoutMs, sizeof(timeoutMs));
-#elif defined(__WIIU__)
-    // timeouts aren't supported on Wii U
+#elif defined(__WIIU__) || defined(__3DS__)
+    // timeouts aren't supported on Wii U or 3DS
     return -1;
 #else
     struct timeval val;
@@ -141,6 +148,17 @@ int pollSockets(struct pollfd* pollFds, int pollFdsCount, int timeoutMs) {
     }
 
     return err;
+#elif defined(__3DS__)
+    int err;
+    u64 poll_start = osGetTime();
+    for (u64 i = poll_start; (i - poll_start) < timeoutMs; i = osGetTime()) {
+        err = poll(pollFds, pollFdsCount, 0); // This is running for 14ms
+        if (err) {
+            break;
+        }
+        svcSleepThread(1000);
+    }
+    return err;
 #else
     return poll(pollFds, pollFdsCount, timeoutMs);
 #endif
@@ -196,6 +214,12 @@ int recvUdpSocket(SOCKET s, char* buffer, int size, bool useSelect) {
                     (LastSocketError() == EWOULDBLOCK ||
                      LastSocketError() == EINTR ||
                      LastSocketError() == EAGAIN ||
+         #if defined(LC_WINDOWS)
+                     // This error is specific to overlapped I/O which isn't even
+                     // possible to perform with recvfrom(). It seems to randomly
+                     // be returned instead of WSAETIMEDOUT on certain systems.
+                     LastSocketError() == WSA_IO_PENDING ||
+         #endif
 		     LastSocketError() == ETIMEDOUT)) {
 		#endif
     
@@ -226,7 +250,56 @@ void closeSocket(SOCKET s) {
 #endif
 }
 
-SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCKADDR_LEN addrLen, int bufferSize) {
+// These set "safe" host or link-local QoS options that we can unconditionally
+// set without having to worry about routers blockholing the traffic.
+static void setSocketQos(SOCKET s, int socketQosType) {
+#ifdef SO_NET_SERVICE_TYPE
+    int value;
+    switch (socketQosType) {
+    case SOCK_QOS_TYPE_BEST_EFFORT:
+        value = NET_SERVICE_TYPE_BE;
+        break;
+    case SOCK_QOS_TYPE_AUDIO:
+        value = NET_SERVICE_TYPE_VO;
+        break;
+    case SOCK_QOS_TYPE_VIDEO:
+        value = NET_SERVICE_TYPE_VI;
+        break;
+    default:
+        Limelog("Unknown QoS type: %d\n", socketQosType);
+        return;
+    }
+
+    // iOS/macOS
+    if (setsockopt(s, SOL_SOCKET, SO_NET_SERVICE_TYPE, (char*)&value, sizeof(value)) < 0) {
+        Limelog("setsockopt(SO_NET_SERVICE_TYPE, %d) failed: %d\n", value, (int)LastSocketError());
+    }
+#endif
+#ifdef SO_PRIORITY
+    int value;
+    switch (socketQosType) {
+    case SOCK_QOS_TYPE_BEST_EFFORT:
+        value = 0;
+        break;
+    case SOCK_QOS_TYPE_AUDIO:
+        value = 6;
+        break;
+    case SOCK_QOS_TYPE_VIDEO:
+        value = 5;
+        break;
+    default:
+        Limelog("Unknown QoS type: %d\n", socketQosType);
+        return;
+    }
+
+    // Linux
+    if (setsockopt(s, SOL_SOCKET, SO_PRIORITY, (char*)&value, sizeof(value)) < 0) {
+        Limelog("setsockopt(SO_PRIORITY, %d) failed: %d\n", value, (int)LastSocketError());
+    }
+#endif
+}
+
+SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCKADDR_LEN addrLen, int bufferSize, int socketQosType) {
     SOCKET s;
     LC_SOCKADDR bindAddr;
     int err;
@@ -255,6 +328,11 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
 #endif
     }
 
+#ifdef __3DS__
+    // binding to wildcard port is broken on the 3DS, so we need to define a port manually
+    struct sockaddr_in *n3ds_addr = &bindAddr;
+    n3ds_addr->sin_port = htons(n3ds_udp_port++);
+#endif
     if (bind(s, (struct sockaddr*) &bindAddr, addrLen) == SOCKET_ERROR) {
         err = LastSocketError();
         Limelog("bind() failed: %d\n", err);
@@ -280,6 +358,15 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
     }
 #endif
 
+    // Enable QOS for the socket (best effort)
+    if (socketQosType != SOCK_QOS_TYPE_BEST_EFFORT) {
+        setSocketQos(s, socketQosType);
+    }
+
+#ifdef __3DS__
+    if (bufferSize == 0 || bufferSize > n3ds_max_buf_size)
+        bufferSize = n3ds_max_buf_size;
+#endif
     if (bufferSize != 0) {
         // We start at the requested recv buffer value and step down until we find
         // a value that the OS will accept.
@@ -291,6 +378,7 @@ SOCKET bindUdpSocket(int addressFamily, struct sockaddr_storage* localAddr, SOCK
             }
             else if (bufferSize <= RCV_BUFFER_SIZE_MIN) {
                 // Failed to set a buffer size within the allowable range
+                Limelog("Set rcv buffer size failed: %d\n", LastSocketError());
                 break;
             }
             else if (bufferSize - RCV_BUFFER_SIZE_STEP <= RCV_BUFFER_SIZE_MIN) {
@@ -454,6 +542,17 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
         SetLastSocketError(ETIMEDOUT);
         return INVALID_SOCKET;
     }
+#ifdef __3DS__ //SO_ERROR is unreliable on 3DS
+    else {
+        char test_buffer[1];
+        err = (int)recv(s, test_buffer, 1, MSG_PEEK);
+        if (err < 0 &&
+            (LastSocketError() == EWOULDBLOCK ||
+            LastSocketError() == EAGAIN)) {
+            err = 0;
+        }
+    }
+#else
     else {
         // The socket was signalled
         SOCKADDR_LEN len = sizeof(err);
@@ -463,6 +562,7 @@ SOCKET connectTcpSocket(struct sockaddr_storage* dstaddr, SOCKADDR_LEN addrlen, 
             err = (err != 0) ? err : LastSocketFail();
         }
     }
+#endif
 
     // Disable non-blocking I/O now that the connection is established
     setSocketNonBlocking(s, false);
@@ -636,7 +736,7 @@ bool isPrivateNetworkAddress(struct sockaddr_storage* address) {
 
 // Enable platform-specific low latency options (best-effort)
 void enterLowLatencyMode(void) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS_DESKTOP)
     DWORD negotiatedVersion;
     PWLAN_INTERFACE_INFO_LIST wlanInterfaceList;
     DWORD i;
@@ -710,7 +810,7 @@ void enterLowLatencyMode(void) {
 }
 
 void exitLowLatencyMode(void) {
-#if defined(LC_WINDOWS)
+#if defined(LC_WINDOWS_DESKTOP)
     // Closing our WLAN client handle will undo our optimizations
     if (WlanHandle != NULL) {
         pfnWlanCloseHandle(WlanHandle, NULL);
@@ -739,7 +839,7 @@ int initializePlatformSockets(void) {
 #if defined(LC_WINDOWS)
     WSADATA data;
     return WSAStartup(MAKEWORD(2, 0), &data);
-#elif defined(__vita__) || defined(__WIIU__)
+#elif defined(__vita__) || defined(__WIIU__) || defined(__3DS__)
     return 0; // already initialized
 #elif defined(LC_POSIX) && !defined(LC_CHROME)
     // Disable SIGPIPE signals to avoid us getting

@@ -128,7 +128,10 @@ const Views = {
       'optimizeGamesBtn',
       'framePacingBtn',
       'audioSyncBtn',
-      'hdrBtn']),
+      'hdrBtn',
+      'selectAudioConfig',
+      'statsBtn'
+    ]),
     left: function() {
       this.view.prev();
     },
@@ -331,6 +334,34 @@ const Views = {
       mark(this.view.current());
     },
     leave: function() {
+      unmark(this.view.current())
+    },
+  },
+  SelectAudioConfigMenu: {
+    isActive: () => isPopupActive('audioConfigMenu'),
+    view: new ListView(
+      () => document
+        .getElementById('audioConfigMenu')
+        .parentNode
+        .children[1]
+        .children[1]
+        .children),
+    up: function () {
+      this.view.prev();
+    },
+    down: function () {
+      this.view.next();
+    },
+    accept: function () {
+      this.view.current().click();
+    },
+    back: function () {
+      document.getElementById('selectAudioConfig').click();
+    },
+    enter: function () {
+      mark(this.view.current());
+    },
+    leave: function () {
       unmark(this.view.current())
     },
   },

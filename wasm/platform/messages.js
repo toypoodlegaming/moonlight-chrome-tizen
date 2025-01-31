@@ -65,6 +65,10 @@ var handlePromiseMessage = function(callbackId, type, msg) {
  * @return {void}
  */
 function handleMessage(msg) {
+  if (msg.indexOf('StatMsg: ') === 0) {
+    $('#stream_stats').text(msg.replace('StatMsg: ', ''));
+    return;
+  }
   console.log('%c[messages.js, handleMessage]', 'color:gray;', 'Message data: ', msg);
   if (msg.indexOf('streamTerminated: ') === 0) { // if it's a recognized event, notify the appropriate function
     // Release our keep awake request

@@ -45,10 +45,14 @@
               <button id="selectFramerate" data-value="60" class="mdl-button mdl-js-button">60 FPS</button>
             </div>
 
-<ul class="framerateMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectFramerate">
+            <ul class="framerateMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectFramerate">
               <li class="mdl-menu__item" data-value="30">30 FPS</li>
               <li class="mdl-menu__item" data-value="60">60 FPS</li>
+              <li class="mdl-menu__item" data-value="75">75 FPS</li>
+              <li class="mdl-menu__item" data-value="90">90 FPS</li>
+              <li class="mdl-menu__item" data-value="100">100 FPS</li>
               <li class="mdl-menu__item" data-value="120">120 FPS</li>
+              <li class="mdl-menu__item" data-value="144">144 FPS</li>
             </ul>
 
             <div id="framerateTooltip" class="mdl-tooltip" for="framerateMenu">Framerate</div>
@@ -60,7 +64,7 @@
             </div>
 
             <div class="bitrateMenu mdl-menu mdl-js-menu mdl-js-ripple-effect" for="bandwidthMenu">
-              <input id="bitrateSlider" class="mdl-slider mdl-js-slider" type="range" min="0" max="150" step="0.5" value="20">
+              <input id="bitrateSlider" class="mdl-slider mdl-js-slider" type="range" min="0" max="300" step="1" value="20">
             </div>
 
             <div id="bandwidthTooltip" class="mdl-tooltip" for="bandwidthMenu">Bandwidth</div>
@@ -68,17 +72,13 @@
 
           <div class="nav-menu-parent">
             <div id="codecVideoMenu">
-              <button id="selectCodecVideo" data-value=0x0001 class="mdl-button mdl-js-button">H264</button>
+              <button id="selectCodecVideo" data-value="264" class="mdl-button mdl-js-button">H264</button>
             </div>
 
             <ul class="codecVideoMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectCodecVideo">
-              <li class="mdl-menu__item" data-value=0x0001>H264</li>
-              <li class="mdl-menu__item" data-value=0x0100>HEVC</li>
-              <li class="mdl-menu__item" data-value=0x0200>HEVC Main10</li>
-              <li class="mdl-menu__item" data-value=0x1000>AV1</li>
-              <li class="mdl-menu__item" data-value=0x2000>AV1 Main10</li>
-
-
+              <li class="mdl-menu__item" data-value="264">H264</li>
+              <li class="mdl-menu__item" data-value="265">HEVC</li>
+              <li class="mdl-menu__item" data-value="1">AV1</li>
             </ul>
             <div id="codecVideoMenuTooltip" class="mdl-tooltip" for="codecVideoMenu">Video Codec</div>
           </div>
@@ -122,6 +122,27 @@
             </label>
             <div id="hdrTooltip" class="mdl-tooltip" for="hdrBtn">Enable HDR</div>
           </div>
+
+          <div class="nav-menu-parent">
+            <div id="audioConfigMenu">
+              <button id="selectAudioConfig" data-value="S" class="mdl-button mdl-js-button">Stereo</button>
+            </div>
+
+            <ul class="audioConfigMenu mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="selectAudioConfig">
+              <li class="mdl-menu__item" data-value="S">Stereo</li>
+              <li class="mdl-menu__item" data-value="51">5.1 Surround</li>
+              <li class="mdl-menu__item" data-value="71">7.1 Surround</li>
+            </ul>
+            <div id="audioConfigMenuTooltip" class="mdl-tooltip" for="audioConfigMenu">Audio Config</div>
+          </div>
+
+          <div class="nav-menu-parent">
+            <label id="statsBtn" class="mdl-icon-toggle mdl-js-icon-toggle mdl-js-ripple-effect" for="statsSwitch">
+              <input type="checkbox" id="statsSwitch" class="mdl-icon-toggle__input">
+              <i class="mdl-icon-toggle__label material-icons">av_timer</i>
+            </label>
+            <div id="statsTooltip" class="mdl-tooltip" for="statsBtn">Enable Stats</div>
+          </div>
 		  
           <button type="button" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored mdl-js-ripple-effect" id="quitCurrentApp" aria-label="Quit current app">
             <i class="material-icons">remove_circle_outline</i>Quit Current App
@@ -148,6 +169,7 @@
       </div>
       <div id="modelCodePlaceholder"></div>
     </main>
+    <div id="stream_stats"></div>
   </div>
   <script defer src="static/js/jquery-2.2.0.min.js"></script>
   <script defer src="static/js/material.min.js"></script>

@@ -51,7 +51,7 @@ MoonlightInstance::MoonlightInstance()
       m_VideoSessionId(0),
       m_MediaElement("nacl_module"),
       m_Source(
-        samsung::wasm::ElementaryMediaStreamSource::LatencyMode::kUltraLow,
+        samsung::wasm::ElementaryMediaStreamSource::LatencyMode::kLow, //TODO add option in menu
         samsung::wasm::ElementaryMediaStreamSource::RenderingMode::kMediaElement),
       m_SourceListener(this),
       m_AudioTrackListener(this),
@@ -146,7 +146,7 @@ void* MoonlightInstance::ConnectionThreadFunc(void* context) {
   serverInfo.serverInfoAppVersion = me->m_AppVersion.c_str();
   serverInfo.serverInfoGfeVersion = me->m_GfeVersion.c_str();
   serverInfo.rtspSessionUrl = me->m_RtspUrl.c_str();
-  serverInfo.serverCodecModeSupport = me->m_supportedVideoFormats; 
+  serverInfo.serverCodecModeSupport = me->m_ServerCodecModeSupport; 
 
   err = LiStartConnection(&serverInfo, &me->m_StreamConfig,
   &MoonlightInstance::s_ClCallbacks, &MoonlightInstance::s_DrCallbacks,
@@ -177,7 +177,7 @@ MessageResult MoonlightInstance::StartStream(
 std::string host, std::string width, std::string height, std::string fps,
 std::string bitrate, std::string rikey, std::string rikeyid,
 std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode, std::string audioConfig, bool statsEnabled) {
   PostToJs("Setting stream width to: " + width);
   PostToJs("Setting stream height to: " + height);
   PostToJs("Setting stream fps to: " + fps);
@@ -193,6 +193,8 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodec
   PostToJs("Setting HDR to:" + std::to_string(hdrEnabled));
   PostToJs("Setting videoCodec: " + codecVideo);
   PostToJs("Setting serverCodecSupportMode: " + serverCodecSupportMode);
+  PostToJs("Setting audioConfig: " + audioConfig);
+  PostToJs("Setting stats to: " + std::to_string(statsEnabled));
 
   // Populate the stream configuration
   LiInitializeStreamConfiguration(&m_StreamConfig);
@@ -200,12 +202,52 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodec
   m_StreamConfig.height = stoi(height);
   m_StreamConfig.fps = stoi(fps);
   m_StreamConfig.bitrate = stoi(bitrate);  // kilobits per second
-  m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
+  
+  if (audioConfig == "51") {
+    m_StreamConfig.audioConfiguration = MAKE_AUDIO_CONFIGURATION(6, 0x60F); //011000001111
+  } else if (audioConfig == "71") {
+    m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_71_SURROUND; //011000111111
+  } else {
+    m_StreamConfig.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
+  }
+
   m_StreamConfig.streamingRemotely = STREAM_CFG_AUTO;
   m_StreamConfig.packetSize = 1392;
-  m_StreamConfig.supportsHevc = true;
-  m_StreamConfig.enableHdr = hdrEnabled;
-  m_StreamConfig.supportedVideoFormats = stoi(codecVideo,0,16); 
+  m_StreamConfig.encryptionFlags = ENCFLG_NONE;
+
+  // H.264 is always supported
+  int derivedVideoFormats = VIDEO_FORMAT_H264;
+  // sad switch options from index.html
+  switch (stoi(codecVideo)) {
+    case 264:
+        break;
+    case 265:
+        derivedVideoFormats |= VIDEO_FORMAT_H265;
+        if (hdrEnabled) {
+            derivedVideoFormats |= VIDEO_FORMAT_H265_MAIN10;
+        }
+        break;
+    case 1:
+        derivedVideoFormats |= VIDEO_FORMAT_AV1_MAIN8;
+        derivedVideoFormats |= SCM_AV1_MAIN8;
+
+        if (hdrEnabled) {
+            derivedVideoFormats |= VIDEO_FORMAT_AV1_MAIN10;
+            derivedVideoFormats |= SCM_AV1_MAIN10;
+        }
+
+        // We'll try to fall back to HEVC first if AV1 fails. We'd rather not fall back
+        // straight to H.264 if the user asked for AV1 and the host doesn't support it.
+        if (derivedVideoFormats & VIDEO_FORMAT_AV1_MAIN8) {
+            derivedVideoFormats |= VIDEO_FORMAT_H265;
+        }
+        if (derivedVideoFormats & VIDEO_FORMAT_AV1_MAIN10) {
+            derivedVideoFormats |= VIDEO_FORMAT_H265_MAIN10;
+        }
+
+        break;
+  }
+  m_StreamConfig.supportedVideoFormats = derivedVideoFormats;
 
   // Load the rikey and rikeyid into the stream configuration
   HexStringToBytes(rikey.c_str(), m_StreamConfig.remoteInputAesKey);
@@ -220,8 +262,13 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodec
   m_FramePacingEnabled = framePacing;
   m_AudioSyncEnabled = audioSync;
   m_HdrEnabled = hdrEnabled;
-  m_supportedVideoFormats = stoi(serverCodecSupportMode);
-  
+
+  m_ServerCodecModeSupport = derivedVideoFormats; // FIXME value should come from the server
+  m_AudioConfig = m_StreamConfig.audioConfiguration;
+  m_StatsEnabled = statsEnabled;
+
+
+
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
     // Start the worker thread to establish the connection
@@ -239,6 +286,11 @@ MessageResult MoonlightInstance::StopStream() {
   StopConnection();
 
   return MessageResult::Resolve();
+}
+
+void MoonlightInstance::ToggleStats() {
+  m_StatsEnabled = !m_StatsEnabled;
+  PostToJsAsync(std::string("StatMsg:  "));
 }
 
 void MoonlightInstance::STUN_private(int callbackId) {
@@ -319,13 +371,16 @@ int main(int argc, char** argv) {
 MessageResult startStream(std::string host, std::string width,
 std::string height, std::string fps, std::string bitrate, std::string rikey,
 std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode, std::string audioConfig, bool statsEnabled) {
   printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(), width.c_str(), height.c_str());
   return g_Instance->StartStream(host, width, height, fps, bitrate, rikey,
-  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, serverCodecSupportMode);
+  rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, serverCodecSupportMode, audioConfig, statsEnabled);
 }
 
 MessageResult stopStream() { return g_Instance->StopStream(); }
+void toggleStats() {
+  g_Instance->ToggleStats();
+}
 void stun(int callbackId) { g_Instance->STUN(callbackId); }
 
 void pair(int callbackId, std::string serverMajorVersion, std::string address, std::string randomNumber) {
@@ -334,6 +389,15 @@ void pair(int callbackId, std::string serverMajorVersion, std::string address, s
 
 void PostToJs(std::string msg) {
   MAIN_THREAD_EM_ASM(
+      {
+        const msg = UTF8ToString($0);
+        handleMessage(msg);
+      },
+      msg.c_str());
+}
+
+void PostToJsAsync(std::string msg) {
+  MAIN_THREAD_ASYNC_EM_ASM(
       {
         const msg = UTF8ToString($0);
         handleMessage(msg);
@@ -369,6 +433,7 @@ EMSCRIPTEN_BINDINGS(handle_message) {
 
   emscripten::function("startStream", &startStream);
   emscripten::function("stopStream", &stopStream);
+  emscripten::function("toggleStats", &toggleStats);
   emscripten::function("stun", &stun);
   emscripten::function("pair", &pair);
 }
