@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v1.2.1
+
+### Added
+- Mouse Emulation Press and hold start for 1sec to switch to on/off.
+  LB/RB and A/B act as left/right
+  No scroll/middle click for now.
+- Fallback to best possible codec if selected codec is not available on the host (thanks @henryfa2)
+- You can now support the project using the BuyMeACoffee link on the Github page. 
+
+### Changed
+
+- Small changes to the interface to improve readability.
+
 ## v1.2.0
 
 ### Added

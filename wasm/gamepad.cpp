@@ -4,12 +4,16 @@
 #include <array>
 #include <utility>
 #include <sstream>
+#include <chrono>
+#include <thread>
+#include <cmath>
 
 #include <Limelight.h>
 #include <emscripten/emscripten.h>
 
 // Define a combination of buttons on the Xbox controller to stop streaming
 const short STOP_STREAM_BUTTONS_FLAGS = LB_FLAG | RB_FLAG | BACK_FLAG | PLAY_FLAG;
+bool isMouseEmulationActive = false;
 // Define a combination of buttons on the Xbox controller to send the home button
 const short HOME_BUTTON_FLAGS = BACK_FLAG | PLAY_FLAG;
 
@@ -118,15 +122,73 @@ void MoonlightInstance::PollGamepads() {
       buttonFlags = SPECIAL_FLAG;
     }
 
-    // Send gamepad input to the desired handler
-    LiSendMultiControllerEvent(
-      gamepadID, activeGamepadMask, buttonFlags, leftTrigger,
-      rightTrigger, leftStickX, leftStickY, rightStickX, rightStickY);
+    static auto startPressTime = std::chrono::steady_clock::now();
+
+    if (buttonFlags & PLAY_FLAG) {
+      auto currentTime = std::chrono::steady_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startPressTime).count();
+      if (duration >= 1000) { // Adjust this value to change how long start needs to be pressed 
+        if (!isMouseEmulationActive) {
+          isMouseEmulationActive = true;
+          PostToJs("mouseEmulation enabled");
+        } else {
+          isMouseEmulationActive = false;
+          PostToJs("mouseEmulation disabled");
+        }
+        startPressTime = std::chrono::steady_clock::now();
+      }
+    } else {
+      startPressTime = std::chrono::steady_clock::now();
+    }
+
+    // If mouse emulation is on, left stick values are used with LiSendMouseMoveEvent
+    if (isMouseEmulationActive) {
+        const float baseMouseSpeed = 10.0f;
+        const float stickMagnitude = std::sqrt(leftStickX * leftStickX + leftStickY * leftStickY) / std::numeric_limits<short>::max();
+        const float mouseSpeed = baseMouseSpeed * stickMagnitude; // Mouse speed increases when the stick is further from the center 
+
+        const float mouseXDelta = static_cast<float>(leftStickX) / std::numeric_limits<short>::max() * mouseSpeed;
+        const float mouseYDelta = -static_cast<float>(leftStickY) / std::numeric_limits<short>::max() * mouseSpeed;
+
+        LiSendMouseMoveEvent(static_cast<int>(mouseXDelta), static_cast<int>(mouseYDelta));
+
+        // Right Stick Y is used for scrolling
+        const float baseScrollSpeed = 1.0f;
+        const float rightStickMagnitude = std::sqrt(rightStickX * rightStickX + rightStickY * rightStickY) / std::numeric_limits<short>::max();
+        const float scrollSpeed = baseScrollSpeed * rightStickMagnitude;
+        const float scrollDelta = static_cast<float>(rightStickY) / std::numeric_limits<short>::max() * scrollSpeed;
+
+        LiSendScrollEvent(static_cast<int>(scrollDelta));
+
+        // Buttons are mapped to mouse clicks 
+
+        if (buttonFlags & (A_FLAG | LB_FLAG)) {
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_LEFT);
+        } else {
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+        }
+
+        if (buttonFlags & (B_FLAG | RB_FLAG)) {
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_RIGHT);
+        } else {
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+        }
+
+        if (buttonFlags & RS_CLK_FLAG) {
+            LiSendMouseButtonEvent(BUTTON_ACTION_PRESS, BUTTON_MIDDLE);
+        } else {
+            LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
+        }
+
+    } else { // Send gamepad input to the desired handler (act as a normal gamepad)
+        LiSendMultiControllerEvent(
+            gamepadID, activeGamepadMask, buttonFlags, leftTrigger,
+            rightTrigger, leftStickX, leftStickY, rightStickX, rightStickY);
+    }
   }
 }
 
-void MoonlightInstance::ClControllerRumble(unsigned short controllerNumber, unsigned short lowFreqMotor, unsigned short highFreqMotor)
-{
+void MoonlightInstance::ClControllerRumble(unsigned short controllerNumber, unsigned short lowFreqMotor, unsigned short highFreqMotor) {
     const float weakMagnitude = static_cast<float>(highFreqMotor) / static_cast<float>(UINT16_MAX);
     const float strongMagnitude = static_cast<float>(lowFreqMotor) / static_cast<float>(UINT16_MAX);
 

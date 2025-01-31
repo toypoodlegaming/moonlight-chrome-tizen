@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 as base
+FROM ubuntu:22.04 AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
 	python2 \
 	unzip \
 	wget \
+	nodejs \
+	npm \
+	zip \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Some of Samsung scripts make reference to python,
@@ -22,10 +25,10 @@ USER moonlight
 WORKDIR /home/moonlight
 
 # Install Tizen Studio
-# get file: web-cli_Tizen_Studio_5.0_ubuntu-64.bin
-RUN wget -nv -O web-cli_Tizen_Studio_5.0_ubuntu-64.bin 'https://download.tizen.org/sdk/Installer/tizen-studio_5.0/web-cli_Tizen_Studio_5.0_ubuntu-64.bin'
-RUN chmod a+x web-cli_Tizen_Studio_5.0_ubuntu-64.bin
-RUN ./web-cli_Tizen_Studio_5.0_ubuntu-64.bin --accept-license /home/moonlight/tizen-studio
+# get file: web-cli_Tizen_Studio_5.6_ubuntu-64.bin
+RUN wget -nv -O web-cli_Tizen_Studio_5.6_ubuntu-64.bin 'https://download.tizen.org/sdk/Installer/tizen-studio_5.6/web-cli_Tizen_Studio_5.6_ubuntu-64.bin'
+RUN chmod a+x web-cli_Tizen_Studio_5.6_ubuntu-64.bin
+RUN ./web-cli_Tizen_Studio_5.6_ubuntu-64.bin --accept-license /home/moonlight/tizen-studio
 ENV PATH=/home/moonlight/tizen-studio/tools/ide/bin:/home/moonlight/tizen-studio/tools:${PATH}
 
 # Prepare Tizen signing cerficates
@@ -81,6 +84,14 @@ RUN echo \
 
 RUN mv build/widget/Moonlight.wgt .
 
+# Clone and install wgt-to-usb
+RUN git clone https://github.com/fingerartur/wgt-to-usb.git
+RUN cd /home/moonlight/wgt-to-usb/ && npm install wgt-to-usb
+
+# Package the application for USB installation
+RUN npm exec wgt-to-usb /home/moonlight/Moonlight.wgt
+RUN cd /home/moonlight/ && zip -r MoonlightUSB.zip ./userwidget
+
 # remove unneed files
 RUN rm -rf \
 	build \
@@ -88,7 +99,7 @@ RUN rm -rf \
 	emscripten-release-bundle \
 	moonlight-chrome-tizen \
 	tizen-package-expect.sh \
-	web-cli_Tizen_Studio_5.0_ubuntu-64.bin \
+	web-cli_Tizen_Studio_5.6_ubuntu-64.bin \
 	.emscripten \
 	.emscripten_cache \
 	.emscripten_cache.lock \
