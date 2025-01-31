@@ -267,8 +267,8 @@ bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodec
   m_AudioConfig = m_StreamConfig.audioConfiguration;
   m_StatsEnabled = statsEnabled;
 
-  m_supportedVideoFormats = stoi(serverCodecSupportMode);
-  
+
+
   // Initialize the rendering surface before starting the connection
   if (InitializeRenderingSurface(m_StreamConfig.width, m_StreamConfig.height)) {
     // Start the worker thread to establish the connection
@@ -371,7 +371,7 @@ int main(int argc, char** argv) {
 MessageResult startStream(std::string host, std::string width,
 std::string height, std::string fps, std::string bitrate, std::string rikey,
 std::string rikeyid, std::string appversion, std::string gfeversion, std::string rtspurl, bool framePacing,
-bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode) {
+bool audioSync, bool hdrEnabled, std::string codecVideo, std::string serverCodecSupportMode, std::string audioConfig, bool statsEnabled) {
   printf("%s host: %s w: %s h: %s\n", __func__, host.c_str(), width.c_str(), height.c_str());
   return g_Instance->StartStream(host, width, height, fps, bitrate, rikey,
   rikeyid, appversion, gfeversion, rtspurl, framePacing, audioSync, hdrEnabled, codecVideo, serverCodecSupportMode, audioConfig, statsEnabled);

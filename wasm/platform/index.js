@@ -1268,6 +1268,7 @@ function saveHdr() {
     const chosenHDR = $("#hdrSwitch").parent().hasClass('is-checked');
     console.log('%c[index.js, saveHDR]', 'color: green;', 'Saving HDR state : ' + chosenHDR);
     storeData('HDR', chosenHDR, null);
+    updateDefaultBitrate();
   }, 100);
 }
 
@@ -1283,6 +1284,7 @@ function saveCodecVideo() {
   var chosenCodecVideo = $(this).data('value');
   $('#selectCodecVideo').text($(this).text()).data('value', chosenCodecVideo);
   storeData('codecVideo', chosenCodecVideo, null);
+  updateDefaultBitrate();
   Navigation.pop();
 }
 
@@ -1333,10 +1335,12 @@ function saveRemoteAudio() {
 function updateDefaultBitrate() {
   var res = $('#selectResolution').data('value');
   var frameRate = $('#selectFramerate').data('value').toString();
+  var codecVideo = $('#selectCodecVideo').data('value').toString();
+  var hdrEnabled = $('#hdrSwitch').parent().hasClass('is-checked') ? 1 : 0;
   var resSplit = res.split(":");
   var width = parseInt(resSplit[0]);
   var height = parseInt(resSplit[1]);
-  var newBitrate = getDefaultBitrate(width, height, frameRate);
+  var newBitrate = getDefaultBitrate(width, height, frameRate, codecVideo, hdrEnabled);
 
   if (newBitrate <= 0) {
     newBitrate = 20;
@@ -1348,12 +1352,18 @@ function updateDefaultBitrate() {
   saveBitrate();
 }
 
-function getDefaultBitrate(width, height, fps) {
+function getDefaultBitrate(width, height, fps, codecVideo, hdrEnabled) {
   // Reference for bitrate calculation formula: https://www.reddit.com/r/MoonlightStreaming/comments/1gg2cdy/sweet_spot_bitrate/
-  var codecVideo = $('#selectCodecVideo').data('value').toString();
-  var codecReductionFactor = {"HEVC" :  0.6, "AV1" : 0.4}[codecVideo] || 1.0;
+  var codecReductionFactor = {"HEVC" :  0.6, "AV1" : 0.4, "265" : 0.6, "1" : 0.4 }[codecVideo] || 1.0;
  
-  var h264Bitrate = width * height * fps / 6630.5;
+  var bitrateFactor;
+  if (hdrEnabled) {
+    bitrateFactor = 6630.5;
+  } else {
+    bitrateFactor = 8309;
+  }
+
+  var h264Bitrate = width * height * fps / bitrateFactor;
 
   var finalBitrate = h264Bitrate * codecReductionFactor;
 
