@@ -52,6 +52,10 @@ function remoteControllerHandler(e) {
         case tvKey.KEY_RED:
             Module.stopStream();
             break;
+        case tvKey.KEY_GREEN:
+            Navigation.startBtn();
+            break;
+    
         case tvKey.KEY_INFO:
         case tvKey.KEY_YELLOW:    
             Module.toggleStats();

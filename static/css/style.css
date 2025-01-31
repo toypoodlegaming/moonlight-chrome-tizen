@@ -13,51 +13,19 @@ body {
 }
 span.mdl-layout-title {
     font-weight: 300;
-    font-size: 24px;
+    font-size: 30px;
 }
 span.mdl-layout-title > span {
     font-weight: 900;
-    font-size: 24px;
+    font-size: 30px;
     color: #00A3C6;
 }
 .mdl-layout__header-row {
     padding: 0 80px 0 80px;
+    background-color: #363b4a
 }
 main {
     padding: 0 80px 0 80px;
-}
-@media screen and (max-width: 600px) {
-    #host-grid .mdl-card {
-        flex-basis: 50% !important;
-    }
-    #game-grid .mdl-card {
-        height: 100px !important;
-        width: 75px !important;
-    }
-}
-@media screen and (min-width: 600px) and (max-width: 800px) {
-    #host-grid .mdl-card {
-        flex-basis: 33% !important;
-    }
-    #game-grid .mdl-card {
-        height: 150px !important;
-        width: 112.5px !important;
-    }
-}
-@media screen and (min-width: 800px) and (max-width: 1024px) {
-    main {
-        padding: 0 72px 0 72px !important;
-    }
-    .mdl-layout__header-row {
-        padding: 0 72px 0 72px !important;
-    }
-    #host-grid .mdl-card {
-        flex-basis: 25% !important;
-    }
-    #game-grid .mdl-card {
-        height: 200px !important;
-        width: 150px !important;
-    }
 }
 @media screen and (min-width: 1024px) {
     #game-grid .mdl-card {
@@ -77,7 +45,7 @@ main {
     color: white;
     font-size: 14px;
 }
-.mdl-menu__item:hover {
+.mdl-menu__item:hover, .mdl-menu__item.hovered, .mdl-menu__item:focus {
     background-color: #00A3C6;
 }
 .mdl-tooltip {
@@ -101,7 +69,7 @@ main {
 .mdl-cell {
     text-align: center;
     color:#fff;
-    padding:25px;
+    padding: 25px;
 }
 #backIcon {
     position: fixed;
@@ -122,7 +90,7 @@ main {
 }
 .mdl-dialog__content {
     padding: 20px 24px 14px 24px;
-    color: rgba(255, 255, 255, 0.90);
+    color: rgba(255, 255, 255, 1);
 }
 .mdl-dialog__actions button {
     width: 100%;
@@ -168,13 +136,15 @@ main {
     min-width:0px;
 }
 #host-grid, #game-grid {
-    padding: 0;
-    margin: 0;
+    padding: 15px ;
+    margin: 35px 0 0 0;
     flex: 1;
     display: flex;
     flex-flow: row wrap;
     align-items: center;
     justify-content: center;
+    overflow: auto;
+    max-height: 850px;
 }
 #host-grid .mdl-card {
     flex-basis: 15%;
@@ -188,14 +158,15 @@ main {
     width: 170px;
     height: 170px;
     min-height: 170px;
-    margin: 15px;
+    margin: 20px 20px;
     cursor: pointer;
     transition: all .2s ease-in-out;
     will-change: transform;
+
 }
 #host-grid .mdl-card:hover, #host-grid .mdl-card:focus, #host-grid .mdl-card:active, #game-grid .mdl-card:focus, #game-grid .mdl-card:active {
-    transform: scale(1.1);
-    outline-color: #00A3C6;
+    outline: #00A3C6 solid 2px;
+    transform: scale(1.2);
 }
 #host-grid .mdl-card__title {
     padding: 0;
@@ -231,6 +202,7 @@ main {
     color: white;
     text-align: center;
     background-color: rgba(0, 0, 0, 0.6);
+
 }
 #game-grid .game-title span {
     padding: 0 10px;
@@ -245,11 +217,8 @@ main {
 }
 .mdl-card.hovered {
     background-color: initial;
-    transform: scale(1.1);
-    outline-color: #00A3C6;
-}
-.hovered {
-    background-color: rgba(158,158,158,.2);
+    outline: #00A3C6 solid 2px; 
+    transform: scale(1.2);
 }
 #host-grid p {
     margin: 0;
@@ -276,14 +245,14 @@ main {
     margin-top: 10px;
     margin-bottom: 10px;
 }
-.remove-host {
+.host-settings {
     position:absolute;
     right:5px;
     top:5px;
     width:24px;
     height:24px;
     z-index: 5;
-    background-image: url('../res/ic_remove_circle_outline_white_48px.svg');
+    background-image: url('../res/menu_48dp_E8EAED_FILL0_wght400_GRAD0_opsz48.svg');
     background-repeat: no-repeat;
     background-size: 20px 20px;
     background-position: center;
@@ -293,10 +262,7 @@ main {
 /*.remove-host:hover, .remove-host:focus {
     background-image: url('\\static\\res\\ic_remove_circle_white_24px.svg');
 }*/
-#pairButton {
-    margin: 3px;
-}
-#showAppsButton {
+#pairButton, #showAppsButton {
     margin: 3px;
 }
 #listener {
@@ -313,10 +279,10 @@ main {
     z-index: 1;
 }
 .current-game {
-    outline: auto #8BC34A;
+    outline: solid #8BC34A 2px;
 }
 .host-cell-inactive {
-    outline: auto #F44336;
+    outline: solid #F44336 2px;
 }
 .host-cell:hover {
     cursor: pointer;
@@ -336,39 +302,20 @@ main {
 .cancel-current .game-title {
     color: #fff;
 }
-#pairingDialogText, #quitAppDialogText,
-#deleteHostDialogText, #restartMoonlightDialogText, #terminateMoonlightDialogText {
+#pairingDialogText, #quitAppDialogText, #deleteHostDialogText, #restartMoonlightDialogText, #terminateMoonlightDialogText {
     font-size: 1.1rem;
 }
-#continueAddHost {
+#continueAddHost, #continueDeleteHost, #continueQuitApp, #exitTerminateMoonlight{
     width: 48%;
 }
-#cancelAddHost {
+#cancelAddHost, #cancelDeleteHost, #cancelTerminateMoonlight, #cancelQuitApp {
     width: 48%;
     margin: 0 10px 20px 0;
 }
-#continueDeleteHost {
-    width: 48%;
-}
-#cancelDeleteHost {
-    width: 48%;
+#pressOK {
     margin: 0 10px 20px 0;
 }
 #cancelPairingDialog {
-    margin: 0 10px 20px 0;
-}
-#continueQuitApp {
-    width: 48%;
-}
-#cancelQuitApp {
-    width: 48%;
-    margin: 0 10px 20px 0;
-}
-#exitTerminateMoonlight {
-    width: 48%;
-}
-#cancelTerminateMoonlight{
-    width: 48%;
     margin: 0 10px 20px 0;
 }
 #continueAddHost:focus, #cancelAddHost:focus,
@@ -376,14 +323,32 @@ main {
 #cancelPairingDialog:focus, #removeHostButton:focus,
 #backIcon:focus, #quitCurrentApp:focus,
 #continueQuitApp:focus, #cancelQuitApp:focus,
-#exitTerminateMoonlight:focus, #cancelTerminateMoonlight:focus {
+#exitTerminateMoonlight:focus, #cancelTerminateMoonlight:focus, #pressOK:focus, .mdl-icon-toggle:focus, .mdl-button:focus {
     background-color: #404354;
-    box-shadow: rgba(0, 163, 198, 1) 0px 0px 2px 4px;
+    box-shadow: rgba(0, 163, 198, 1) 0px 0px 1px 2px;
+}
+#ipPart1.hovered, #ipPart2.hovered, #ipPart3.hovered, #ipPart4.hovered {
+    background-color: #404354;
+    box-shadow: rgba(0, 163, 198, 1) 0px 0px 1px 2px; 
+    color: white;
+}
+.mdl-textfield__input.hovered {
+    background-color: #404354;
 }
 #modelCodePlaceholder {
   position: fixed;
   bottom: 1cm;
   left: 1cm;
+  font-size : 12px;
+}
+.mdl-dialog__content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.mdl-dialog__content button {
+    margin-bottom: 10px; 
+    width: 100%; 
 }
 #stream_stats {
     position: absolute;

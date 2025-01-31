@@ -426,6 +426,48 @@ void PostPromiseMessage(int callbackId, const std::string& type, const std::vect
       callbackId, type.c_str(), response.data(), response.size());
 }
 
+void wakeOnLan(int callbackId, std::string macAddress) {
+    unsigned char magicPacket[102];
+    unsigned char mac[6];
+
+    if (sscanf(macAddress.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
+        printf("Invalid MAC address format\n");
+        return;
+    }
+
+    for (int i = 0; i < 6; i++) {
+        magicPacket[i] = 0xFF;
+    }
+    for (int i = 1; i <= 16; i++) {
+        memcpy(&magicPacket[i * 6], &mac, 6 * sizeof(unsigned char));
+    }
+
+    int udpSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udpSocket == -1) {
+        printf("Failed to create socket\n");
+        return;
+    }
+
+    int broadcast = 1;
+    if (setsockopt(udpSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) == -1) {
+        printf("Failed to enable broadcast\n");
+        close(udpSocket);
+        return;
+    }
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_BROADCAST;
+    addr.sin_port = htons(9); // Wake-on-LAN typically uses port 9
+
+    if (sendto(udpSocket, magicPacket, sizeof(magicPacket), 0, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
+        printf("Failed to send magic packet\n");
+    }
+
+    close(udpSocket);
+}
+
 EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::value_object<MessageResult>("MessageResult")
     .field("type", &MessageResult::type)
@@ -436,4 +478,5 @@ EMSCRIPTEN_BINDINGS(handle_message) {
   emscripten::function("toggleStats", &toggleStats);
   emscripten::function("stun", &stun);
   emscripten::function("pair", &pair);
+  emscripten::function("wakeOnLan", &wakeOnLan);
 }

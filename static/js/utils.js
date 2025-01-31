@@ -90,9 +90,10 @@ String.prototype.toHex = function() {
   return hex;
 }
 
-function NvHTTP(address, clientUid, userEnteredAddress = '') {
+function NvHTTP(address, clientUid, userEnteredAddress = '', macAddress) {
   console.log('%c[utils.js, NvHTTP Object]', 'color: gray;', this);
   this.address = address;
+  this.macAddress = macAddress;
   this.ppkstr = null;
   this.paired = false;
   this.currentGame = 0;
@@ -217,6 +218,7 @@ NvHTTP.prototype = {
       // as online initially
       if (this.paired && this._pollCount++ % 10 == 1) {
         this.getAppListWithCacheFlush();
+        updateMacAddress(this); //FIXME(?) : needed to correctly set the stored mac address (indexedDB)
       }
 
       this._consecutivePollFailures = 0;
@@ -267,6 +269,7 @@ NvHTTP.prototype = {
     var string = '';
     string += 'server address: ' + this.address + '\r\n';
     string += 'server UID: ' + this.serverUid + '\r\n';
+    string += 'mac address: ' + this.macAddress + '\r\n';
     string += 'is paired: ' + this.paired + '\r\n';
     string += 'current game: ' + this.currentGame + '\r\n';
     string += 'server major version: ' + this.serverMajorVersion + '\r\n';
@@ -302,6 +305,7 @@ NvHTTP.prototype = {
     this.serverMajorVersion = parseInt(this.appVersion.substring(0, 1), 10);
     this.serverUid = $root.find('uniqueid').text().trim();
     this.hostname = $root.find('hostname').text().trim();
+    this.macAddress = $root.find('mac').text().trim();
     this.serverCodecSupportMode = $root.find('ServerCodecModeSupport').text().trim();
 
     var externIP = $root.find('ExternalIP').text().trim();
@@ -394,7 +398,7 @@ NvHTTP.prototype = {
       for (var i = 0, len = appElements.length; i < len; i++) {
         appList.push({
           title: appElements[i].getElementsByTagName("AppTitle")[0].innerHTML.trim(),
-          id: parseInt(appElements[i].getElementsByTagName("ID")[0].innerHTML.trim(), 10)
+          id: parseInt(appElements[i].getElementsByTagName("ID")[0].innerHTML.trim(), 10),
         });
       }
 
@@ -416,51 +420,24 @@ NvHTTP.prototype = {
     return this.getAppListWithCacheFlush();
   },
 
-  // returns the box art of the given appID.
-  // three layers of response time are possible: memory cached (in javascript), storage cached (in chrome.storage.local), and streamed (host sends binary over the network)
-  getBoxArt: function(appId) {
-    if (runningOnChrome()) {
-      // This may be bad practice to push/pull this much data through local storage?
-      return new Promise(function(resolve, reject) {
-        chrome.storage.local.get('boxart-' + appId, function(storageData) {
-          // if we already have it, load it.
-          if (storageData !== undefined && Object.keys(storageData).length !== 0 && storageData['boxart-' + appId].constructor !== Object) {
-            console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art for app: ', appId);
-            resolve(storageData['boxart-' + appId]);
-            return;
-          }
+  // https://developer.samsung.com/smarttv/develop/api-references/tizen-web-device-api-references/filesystem-api.html
+  getBoxArt: function (appId) {
+    return new Promise(function (resolve, reject) {
+      var boxArtFileName = 'boxart-' + appId;
+      var boxArtDir = 'wgt-private/' + this.hostname; // Tizen private storage directory, it's r/w and is deleted when the app is uninstalled. 
+      try {
+        var fileHandleRead = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "r");
+        var fileContentInBlob = fileHandleRead.readBlob();
+        fileHandleRead.close();
+        console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning storage-cached box art for app: ', appId);
 
-          // otherwise, put it in our cache, then return it
-          sendMessage('openUrl', [
-            this._baseUrlHttps +
-            '/appasset?' + this._buildUidStr() +
-            '&appid=' + appId +
-            '&AssetType=2&AssetIdx=0',
-            this.ppkstr,
-            true
-          ]).then(function(boxArtBuffer) {
-            var reader = new FileReader();
-            reader.onloadend = function() {
-              var obj = {};
-              obj['boxart-' + appId] = this.result;
-              chrome.storage.local.set(obj, function(onSuccess) {});
-              console.log('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
-              resolve(this.result);
-            }
-            reader.readAsDataURL(new Blob([boxArtBuffer], {
-              type: "image/png"
-            }));
-          }.bind(this), function(error) {
-            console.error('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
-            reject(error);
-            return;
-          }.bind(this));
-        }.bind(this));
-      }.bind(this));
-
-    } else { // shouldn't run because we always have chrome.storage, but I'm not going to antagonize other browsers
-      console.warn('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'chrome.storage not detected! Box art will not be saved!');
-      return new Promise((resolve, reject) => {
+        var reader = new FileReader();
+        reader.onloadend = function () {
+          var dataUrl = reader.result;
+          resolve(dataUrl);
+        };
+        reader.readAsDataURL(fileContentInBlob);
+      } catch (e) {
         sendMessage('openUrl', [
           this._baseUrlHttps +
           '/appasset?' + this._buildUidStr() +
@@ -468,26 +445,46 @@ NvHTTP.prototype = {
           '&AssetType=2&AssetIdx=0',
           this.ppkstr,
           true
-        ]).then((boxArtBuffer) => {
+        ]).then(function (boxArtBuffer) {
           var reader = new FileReader();
-          reader.onloadend = function() {
-            var obj = {};
-            obj['boxart-' + appId] = this.result;
-            console.log('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
-            resolve(this.result);
-          }
-          reader.readAsDataURL(new Blob([boxArtBuffer], {
-            type: "image/png"
-          }));
-        }, (error) => {
-          console.error('%c[utils.js, utils.js,  getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
+          reader.onloadend = function () {
+            var dataUrl = reader.result;
+
+            try {
+              var fileHandleWrite = tizen.filesystem.openFile(boxArtDir + "/" + boxArtFileName, "w");
+              fileHandleWrite.writeData(boxArtBuffer);
+              fileHandleWrite.close();
+              console.log('%c[utils.js, getBoxArt]', 'color: gray;', 'Returning network-fetched box art');
+              resolve(dataUrl);
+            } catch (writeError) {
+              console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Failed to write box art to file!', writeError);
+              reject(writeError);
+            }
+          };
+          var blob = new Blob([boxArtBuffer], { type: "image/png" });
+          reader.readAsDataURL(blob);
+        }.bind(this), function (error) {
+          console.error('%c[utils.js, getBoxArt]', 'color: gray;', 'Box-art request failed!', error);
           reject(error);
-          return;
-        });
-      });
-    }
+        }.bind(this));
+      }
+    }.bind(this));
   },
 
+  purgeBoxArt: function () {
+    return new Promise(function (resolve, reject) {
+        var boxArtDir = 'wgt-private/' + this.hostname;
+        try {
+            tizen.filesystem.deleteDirectory(boxArtDir);
+            console.log('%c[utils.js, purgeBoxArt]', 'color: gray;', 'Purging box art files from: ', boxArtDir);
+            resolve();
+        } catch (e) {
+            console.error('%c[utils.js, purgeAndFetchBoxArt]', 'color: gray;', 'Failed to delete box art files!', e);
+            reject(e);
+        }
+    }.bind(this));
+  },
+    
   launchApp: function(appId, mode, sops, rikey, rikeyid, localAudio, surroundAudioInfo, gamepadMask) {
     return sendMessage('openUrl', [
       this._baseUrlHttps +
@@ -560,5 +557,10 @@ NvHTTP.prototype = {
 
   _parseXML: function(xmlData) {
     return $($.parseXML(xmlData.toString()));
+  },
+
+  sendWOL: function() {
+    snackbarLogLong('Sending WOL request to ' + this.hostname + ' with mac address ' + this.macAddress);
+    return sendMessage('wakeOnLan', [this.macAddress]);
   },
 };
